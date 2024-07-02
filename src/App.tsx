@@ -13,10 +13,10 @@ import routerProvider, {
 import { App as AntdApp, ConfigProvider } from "antd";
 
 import { resources, themeConfig } from "@/config";
-import { authProvider, dataProvider, liveProvider } from "@/providers";
+import authProvider from "@/providers/auth"; // Ajuste a importação aqui
+import { dataProvider } from "@/providers/data"; // Ajuste a importação aqui
 
 import { AlgoliaSearchWrapper, FullScreenLoading, Layout } from "./components";
-import { useAutoLoginForDemo } from "./hooks";
 import { AuditLogPage, SettingsPage } from "./routes/administration";
 import {
   CalendarCreatePage,
@@ -68,14 +68,6 @@ import "./styles/fc.css";
 import "./styles/index.css";
 
 const App: React.FC = () => {
-  // This hook is used to automatically login the user.
-  // We use this hook to skip the login page and demonstrate the application more quickly.
-  const { loading } = useAutoLoginForDemo();
-
-  if (loading) {
-    return <FullScreenLoading />;
-  }
-
   return (
     <AlgoliaSearchWrapper>
       <BrowserRouter>
@@ -85,7 +77,6 @@ const App: React.FC = () => {
               <Refine
                 authProvider={authProvider}
                 dataProvider={dataProvider}
-                liveProvider={liveProvider}
                 routerProvider={routerProvider}
                 resources={resources}
                 notificationProvider={useNotificationProvider}

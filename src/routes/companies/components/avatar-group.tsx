@@ -18,7 +18,7 @@ type Props = {
 };
 
 export const AvatarGroup: FC<Props> = ({
-  avatars,
+  avatars = [],  // Default value for avatars
   size,
   overlap,
   maxCount = 3,

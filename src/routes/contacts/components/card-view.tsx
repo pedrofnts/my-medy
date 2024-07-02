@@ -1,17 +1,14 @@
 import { useMemo } from "react";
 
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
-
 import { List, type ListProps, type TableProps } from "antd";
 
 import { PaginationTotal } from "@/components";
-import type { Contact } from "@/graphql/schema.types";
-import type { ContactsListQuery } from "@/graphql/types";
+import type { Contact } from "@/types";
 
 import { ContactCard, ContactCardSkeleton } from "./card";
 
 type Props = {
-  tableProps: TableProps<GetFieldsFromList<ContactsListQuery>>;
+  tableProps: TableProps<Contact>;
   setCurrent: (current: number) => void;
   setPageSize: (pageSize: number) => void;
 };
@@ -22,7 +19,10 @@ export const CardView: React.FC<Props> = ({
   setPageSize,
 }) => {
   const data = useMemo(() => {
-    return [...(dataSource || [])];
+    return (dataSource || []).map(contact => ({
+      ...contact,
+      id: contact.id.toString(),
+    }));
   }, [dataSource]);
 
   return (
@@ -70,7 +70,7 @@ export const CardView: React.FC<Props> = ({
             xl: 4,
           }}
           dataSource={Array.from({ length: 12 }).map((_, i) => ({
-            id: i,
+            id: i.toString(),
           }))}
           renderItem={() => (
             <List.Item>

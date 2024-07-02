@@ -2,50 +2,26 @@ import { type FC, type PropsWithChildren, useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 import { useModalForm, useSelect } from "@refinedev/antd";
-import {
-  type HttpError,
-  useCreate,
-  useGetIdentity,
-  useNavigation,
-} from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
+import { type HttpError, useCreate, useGetIdentity, useNavigation } from "@refinedev/core";
 
-import {
-  DollarOutlined,
-  MailOutlined,
-  PlusCircleOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import {
-  Col,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Row,
-  Select,
-  Typography,
-} from "antd";
+import { DollarOutlined, MailOutlined, PlusCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { Col, Form, Input, InputNumber, Modal, Row, Select, Typography } from "antd";
 
 import { SelectOptionWithAvatar } from "@/components";
 import type { Contact, Deal, User } from "@/graphql/schema.types";
-import type { SalesCompaniesSelectQuery } from "@/graphql/types";
 import { useDealStagesSelect } from "@/hooks/useDealStagesSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 
-import {
-  SALES_COMPANIES_SELECT_QUERY,
-  SALES_CREATE_CONTACT_MUTATION,
-} from "./queries";
+import { createContact, fetchCompanies } from "./queries";
 
 type FormValues = {
-  stageId?: string | null;
-  companyId?: string;
-  dealContactId?: string;
-  dealOwnerId?: string;
+  stage_id?: string | null;
+  company_id?: string;
+  deal_contact_id?: string;
+  deal_owner_id?: string;
   title?: string;
-  contactName?: string;
-  contactEmail?: string;
+  contact_name?: string;
+  contact_email?: string;
 };
 
 export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
@@ -53,87 +29,62 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
   const { pathname } = useLocation();
   const { list, replace } = useNavigation();
 
-  const { formProps, modalProps, close } = useModalForm<
-    Deal,
-    HttpError,
-    FormValues
-  >({
+  const { formProps, modalProps, close } = useModalForm<Deal, HttpError, FormValues>({
     action: "create",
     defaultVisible: true,
   });
 
   useEffect(() => {
-    const stageId = searchParams.get("stageId");
-    const companyId = searchParams.get("companyId");
+    const stage_id = searchParams.get("stage_id");
+    const company_id = searchParams.get("company_id");
 
-    if (stageId) {
+    if (stage_id) {
       formProps.form?.setFieldsValue({
-        stageId,
+        stage_id,
       });
     }
 
-    if (companyId && companyId !== "null") {
+    if (company_id && company_id !== "null") {
       formProps.form?.setFieldsValue({
-        companyId,
+        company_id,
       });
     }
   }, [searchParams]);
 
-  const { selectProps, queryResult } = useSelect<
-    GetFieldsFromList<SalesCompaniesSelectQuery>
-  >({
+  const { selectProps: companySelectProps, queryResult: companyQueryResult } = useSelect({
     resource: "companies",
     optionLabel: "name",
-    meta: {
-      gqlQuery: SALES_COMPANIES_SELECT_QUERY,
-    },
+    queryFn: fetchCompanies,
   });
 
   const { selectProps: stageSelectProps } = useDealStagesSelect();
-
-  const { selectProps: userSelectProps, queryResult: userQueryResult } =
-    useUsersSelect();
-
+  const { selectProps: userSelectProps, queryResult: userQueryResult } = useUsersSelect();
   const { data: user } = useGetIdentity<User>();
-
   const { mutateAsync: createMutateAsync } = useCreate<Contact>();
 
-  const companyId = Form.useWatch("companyId", formProps.form);
+  const company_id = Form.useWatch("company_id", formProps.form);
 
   useEffect(() => {
-    formProps.form?.setFieldValue("dealContactId", undefined);
-  }, [companyId]);
+    formProps.form?.setFieldValue("deal_contact_id", undefined);
+  }, [company_id]);
 
   const renderContactForm = () => {
-    if (!companyId) {
+    if (!company_id) {
       return null;
     }
 
-    const selectedCompany = queryResult.data?.data?.find(
-      (company) => company.id === companyId,
-    );
+    const selectedCompany = companyQueryResult.data?.find((company) => company.id === company_id);
 
-    const hasContact =
-      selectedCompany?.contacts?.nodes?.length !== undefined &&
-      selectedCompany.contacts.nodes.length > 0;
+    const hasContact = selectedCompany?.contacts?.length > 0;
 
     if (hasContact) {
-      const options = selectedCompany?.contacts?.nodes?.map((contact) => ({
-        label: (
-          <SelectOptionWithAvatar
-            name={contact.name}
-            avatarUrl={contact.avatarUrl ?? undefined}
-          />
-        ),
+      const options = selectedCompany.contacts.map((contact) => ({
+        label: <SelectOptionWithAvatar name={contact.name} avatarUrl={contact.avatar_url ?? undefined} />,
         value: contact.id,
       }));
 
       return (
-        <Form.Item
-          label="Deal contact"
-          name="dealContactId"
-          rules={[{ required: true }]}
-        >
+        <Form.Item label="Deal contact" name="deal_contact_id" rules={[{ required: true }]}>
           <Select options={options} />
         </Form.Item>
       );
@@ -142,22 +93,12 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
     return (
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item
-            label="Contact name"
-            name="contactName"
-            rules={[{ required: true }]}
-          >
-            {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
+          <Form.Item label="Contact name" name="contact_name" rules={[{ required: true }]}>
             <Input addonBefore={<UserOutlined />} placeholder="Contact name" />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item
-            label="Contact email"
-            name="contactEmail"
-            rules={[{ required: true }]}
-          >
-            {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
+          <Form.Item label="Contact email" name="contact_email" rules={[{ required: true }]}>
             <Input addonBefore={<MailOutlined />} placeholder="Contact email" />
           </Form.Item>
         </Col>
@@ -165,8 +106,7 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
     );
   };
 
-  const isHaveOverModal =
-    pathname === "/scrumboard/sales/create/company/create";
+  const isHaveOverModal = pathname === "/scrumboard/sales/create/company/create";
 
   return (
     <>
@@ -184,28 +124,26 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
           {...formProps}
           layout="vertical"
           onFinish={async (values) => {
-            if (values.contactName && values.contactEmail) {
+            if (values.contact_name && values.contact_email) {
               const { data } = await createMutateAsync({
                 resource: "contacts",
                 values: {
-                  name: values.contactName,
-                  email: values.contactEmail,
-                  salesOwnerId: user?.id,
-                  companyId,
+                  name: values.contact_name,
+                  email: values.contact_email,
+                  sales_owner_id: user?.id,
+                  company_id,
                 },
-                meta: {
-                  gqlMutation: SALES_CREATE_CONTACT_MUTATION,
-                },
+                queryFn: createContact,
               });
 
-              delete values.contactName;
-              delete values.contactEmail;
+              delete values.contact_name;
+              delete values.contact_email;
 
               if (data) {
                 formProps.onFinish?.({
                   ...values,
-                  dealContactId: data.id,
-                  dealOwnerId: user?.id,
+                  deal_contact_id: data.id,
+                  deal_owner_id: user?.id,
                 });
               }
             } else {
@@ -213,98 +151,76 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
             }
           }}
         >
-          <Form.Item
-            label="Deal title"
-            name="title"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label="Deal title" name="title" rules={[{ required: true }]}>
             <Input placeholder="Please enter deal title" />
           </Form.Item>
           <Form.Item
             label="Company"
-            name="companyId"
+            name="company_id"
             rules={[{ required: true }]}
             extra={
               <Typography.Link
                 style={{ marginTop: 8, display: "block" }}
-                onClick={() =>
-                  replace("company/create?to=/scrumboard/sales/create")
-                }
+                onClick={() => replace("company/create?to=/scrumboard/sales/create")}
               >
-                {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
                 <PlusCircleOutlined /> Add new company
               </Typography.Link>
             }
           >
             <Select
               placeholder="Please select company"
-              {...selectProps}
+              {...companySelectProps}
               options={
-                queryResult.data?.data?.map((company) => ({
+                Array.isArray(companyQueryResult.data) ? companyQueryResult.data.map((company) => ({
                   value: company.id,
                   label: (
                     <SelectOptionWithAvatar
                       name={company.name}
                       shape="square"
-                      avatarUrl={company.avatarUrl ?? undefined}
+                      avatarUrl={company.avatar_url ?? undefined}
                     />
                   ),
-                })) ?? []
+                })) : []
               }
             />
           </Form.Item>
-
           {renderContactForm()}
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item label="Stage" name="stageId">
+              <Form.Item label="Stage" name="stage_id">
                 <Select
                   placeholder="Please select stage"
                   {...stageSelectProps}
                   showSearch={false}
-                  options={stageSelectProps.options?.concat({
+                  options={Array.isArray(stageSelectProps?.options) ? stageSelectProps.options.concat({
                     label: "UNASSIGNED",
                     value: null,
-                  })}
+                  }) : []}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                rules={[{ required: true }]}
-                label="Deal value"
-                name="value"
-              >
+              <Form.Item rules={[{ required: true }]} label="Deal value" name="value">
                 <InputNumber
                   min={0}
-                  // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
                   addonBefore={<DollarOutlined />}
                   placeholder="0,00"
-                  formatter={(value) =>
-                    `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                  }
+                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                 />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item
-            label="Deal owner"
-            name="dealOwnerId"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label="Deal owner" name="deal_owner_id" rules={[{ required: true }]}>
             <Select
               placeholder="Please select user"
               {...userSelectProps}
               options={
-                userQueryResult.data?.data?.map((user) => ({
+                Array.isArray(userQueryResult.data) ? userQueryResult.data.map((user) => ({
                   value: user.id,
                   label: (
-                    <SelectOptionWithAvatar
-                      name={user.name}
-                      avatarUrl={user.avatarUrl ?? undefined}
-                    />
+                    <SelectOptionWithAvatar name={user.name} avatarUrl={user.avatar_url ?? undefined} />
                   ),
-                })) ?? []
+                })) : []
               }
             />
           </Form.Item>

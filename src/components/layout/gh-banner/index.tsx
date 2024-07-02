@@ -124,7 +124,7 @@ export const GitHubBanner = () => {
             </div>
           </div>
         </div>
-        <Text />
+
       </div>
     </div>
   );
@@ -171,9 +171,6 @@ const Text = () => {
           }}
         >
           💡
-        </span>
-        <span className="text">
-          This example is open-source! Get the full source code.
         </span>
       </div>
     </a>

@@ -7,7 +7,6 @@ import { useLogin } from "@refinedev/core";
 import { GithubOutlined, GoogleOutlined } from "@ant-design/icons";
 
 import { Title } from "@/components";
-import { demoCredentials } from "@/providers";
 
 export const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -19,7 +18,7 @@ export const LoginPage: React.FC = () => {
 
   const initialValues = emailFromSearchParams
     ? { email: emailFromSearchParams }
-    : demoCredentials;
+    : {};
 
   useEffect(() => {
     if (accessToken && refreshToken) {

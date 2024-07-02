@@ -1,7 +1,5 @@
-import { useState } from "react";
-
-import { useShow } from "@refinedev/core";
-import type { GetFields } from "@refinedev/nestjs-query";
+import { useEffect,useState } from "react";
+import { useParams } from "react-router-dom";
 
 import {
   ApiOutlined,
@@ -11,20 +9,23 @@ import {
   EnvironmentOutlined,
   ShopOutlined,
 } from "@ant-design/icons";
-import { Card, Input, InputNumber, Select, Space } from "antd";
+import { Card, Input, InputNumber, Select, Space, Spin } from "antd";
 
 import { SingleElementForm, Text } from "@/components";
-import type {
-  BusinessType,
-  CompanySize,
-  Industry,
-} from "@/graphql/schema.types";
-import type { CompanyInfoQuery } from "@/graphql/types";
+import type { BusinessType, CompanySize, Industry } from "@/graphql/schema.types";
 import { currencyNumber } from "@/utilities";
 
-import { COMPANY_INFO_QUERY } from "./queries";
+import { fetchCompanyInfo } from "./queries";
 
-type Company = GetFields<CompanyInfoQuery>;
+type CompanyInfo = {
+  id: number;
+  total_revenue: number;
+  industry: Industry;
+  company_size: CompanySize;
+  business_type: BusinessType;
+  country: string;
+  website: string;
+};
 
 export const CompanyInfoForm = () => {
   const [activeForm, setActiveForm] = useState<
@@ -35,38 +36,54 @@ export const CompanyInfoForm = () => {
     | "country"
     | "website"
   >();
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { id } = useParams<{ id: string }>();
 
-  const { queryResult } = useShow<Company>({
-    meta: {
-      gqlQuery: COMPANY_INFO_QUERY,
-    },
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      if (id) {
+        try {
+          const data = await fetchCompanyInfo(Number(id));
+          setCompanyInfo(data);
+        } catch (error) {
+          console.error("Error fetching company info:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    fetchData();
+  }, [id]);
 
-  const data = queryResult?.data?.data;
-  const {
-    totalRevenue,
-    industry,
-    companySize,
-    businessType,
-    country,
-    website,
-  } = data || {};
-
-  const getActiveForm = (args: { formName: keyof Company }) => {
-    const { formName } = args;
-
+  const getActiveForm = (formName: keyof CompanyInfo) => {
     if (activeForm === formName) {
       return "form";
     }
 
-    if (!data?.[formName]) {
+    if (!companyInfo?.[formName]) {
       return "empty";
     }
 
     return "view";
   };
 
-  const loading = queryResult?.isLoading;
+  if (loading) {
+    return <Spin />;
+  }
+
+  if (!companyInfo) {
+    return <Text>No company info available.</Text>;
+  }
+
+  const {
+    total_revenue,
+    industry,
+    company_size,
+    business_type,
+    country,
+    website,
+  } = companyInfo;
 
   return (
     <Card
@@ -88,25 +105,24 @@ export const CompanyInfoForm = () => {
       }}
     >
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<ColumnWidthOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "companySize" })}
+        state={getActiveForm("company_size")}
         itemProps={{
           name: "companySize",
           label: "Company size",
         }}
-        view={<Text>{companySize}</Text>}
-        onClick={() => setActiveForm("companySize")}
+        view={<Text>{company_size}</Text>}
+        onClick={() => setActiveForm("company_size")}
         onUpdate={() => setActiveForm(undefined)}
         onCancel={() => setActiveForm(undefined)}
       >
         <Select
           autoFocus
-          defaultValue={companySize}
+          defaultValue={company_size}
           options={companySizeOptions}
           style={{
             width: "100%",
@@ -114,19 +130,18 @@ export const CompanyInfoForm = () => {
         />
       </SingleElementForm>
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<DollarOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "totalRevenue" })}
+        state={getActiveForm("total_revenue")}
         itemProps={{
           name: "totalRevenue",
           label: "Total revenue",
         }}
-        view={<Text>{currencyNumber(totalRevenue || 0)}</Text>}
-        onClick={() => setActiveForm("totalRevenue")}
+        view={<Text>{currencyNumber(total_revenue || 0)}</Text>}
+        onClick={() => setActiveForm("total_revenue")}
         onUpdate={() => setActiveForm(undefined)}
         onCancel={() => setActiveForm(undefined)}
       >
@@ -135,20 +150,19 @@ export const CompanyInfoForm = () => {
           addonBefore={"$"}
           min={0}
           placeholder="0,00"
-          defaultValue={totalRevenue || 0}
+          defaultValue={total_revenue || 0}
           formatter={(value) =>
             `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
           }
         />
       </SingleElementForm>
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<BankOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "industry" })}
+        state={getActiveForm("industry")}
         itemProps={{
           name: "industry",
           label: "Industry",
@@ -168,25 +182,24 @@ export const CompanyInfoForm = () => {
         />
       </SingleElementForm>
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<ApiOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "businessType" })}
+        state={getActiveForm("business_type")}
         itemProps={{
           name: "businessType",
           label: "Business type",
         }}
-        view={<Text>{businessType}</Text>}
-        onClick={() => setActiveForm("businessType")}
+        view={<Text>{business_type}</Text>}
+        onClick={() => setActiveForm("business_type")}
         onUpdate={() => setActiveForm(undefined)}
         onCancel={() => setActiveForm(undefined)}
       >
         <Select
           autoFocus
-          defaultValue={businessType}
+          defaultValue={business_type}
           options={businessTypeOptions}
           style={{
             width: "100%",
@@ -194,13 +207,12 @@ export const CompanyInfoForm = () => {
         />
       </SingleElementForm>
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<EnvironmentOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "country" })}
+        state={getActiveForm("country")}
         itemProps={{
           name: "country",
           label: "Country",
@@ -220,13 +232,12 @@ export const CompanyInfoForm = () => {
         />
       </SingleElementForm>
       <SingleElementForm
-        loading={loading}
         style={{
           padding: "0.5rem 1rem",
         }}
         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon={<EnvironmentOutlined className="tertiary" />}
-        state={getActiveForm({ formName: "website" })}
+        state={getActiveForm("website")}
         itemProps={{
           name: "website",
           label: "Website",

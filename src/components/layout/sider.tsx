@@ -205,65 +205,63 @@ export const Sider: React.FC = () => {
     zIndex: 999,
   };
 
-  return (
-    <>
-      <Layout.Sider
-        style={siderStyles}
-        width={256}
-        collapsible
-        collapsed={siderCollapsed}
-        onCollapse={(collapsed, type) => {
-          if (type === "clickTrigger") {
-            setSiderCollapsed(collapsed);
-          }
-        }}
-        collapsedWidth={80}
-        breakpoint="lg"
-        trigger={
-          <Button
-            type="text"
-            style={{
-              borderRadius: 0,
-              height: "100%",
-              width: "100%",
-              backgroundColor: token.colorBgElevated,
-              borderRight: `1px solid ${token.colorBorderBg}`,
-            }}
-          >
-            {siderCollapsed ? (
-              // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-              <RightOutlined
-                style={{
-                  color: token.colorPrimary,
-                }}
-              />
-            ) : (
-              // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-              <LeftOutlined
-                style={{
-                  color: token.colorPrimary,
-                }}
-              />
-            )}
-          </Button>
+  return (<>
+    <Layout.Sider
+      style={siderStyles}
+      width={256}
+      collapsible
+      collapsed={siderCollapsed}
+      onCollapse={(collapsed, type) => {
+        if (type === "clickTrigger") {
+          setSiderCollapsed(collapsed);
         }
-      >
-        <div
+      }}
+      collapsedWidth={80}
+      breakpoint="lg"
+      trigger={
+        <Button
+          type="text"
           style={{
-            width: siderCollapsed ? "80px" : "256px",
-            padding: siderCollapsed ? "0" : "0 16px",
-            display: "flex",
-            justifyContent: siderCollapsed ? "center" : "flex-start",
-            alignItems: "center",
-            height: "64px",
+            borderRadius: 0,
+            height: "100%",
+            width: "100%",
             backgroundColor: token.colorBgElevated,
-            fontSize: "14px",
+            borderRight: `1px solid ${token.colorBorderBg}`,
           }}
         >
-          <Title collapsed={siderCollapsed} />
-        </div>
-        {renderMenu()}
-      </Layout.Sider>
-    </>
-  );
+          {siderCollapsed ? (
+            // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
+            (<RightOutlined
+              style={{
+                color: token.colorPrimary,
+              }}
+            />)
+          ) : (
+            // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
+            (<LeftOutlined
+              style={{
+                color: token.colorPrimary,
+              }}
+            />)
+          )}
+        </Button>
+      }
+    >
+      <div
+        style={{
+          width: siderCollapsed ? "80px" : "256px",
+          padding: siderCollapsed ? "0" : "0 16px",
+          display: "flex",
+          justifyContent: siderCollapsed ? "center" : "flex-start",
+          alignItems: "center",
+          height: "64px",
+          backgroundColor: token.colorBgElevated,
+          fontSize: "14px",
+        }}
+      >
+        <Title collapsed={siderCollapsed} />
+      </div>
+      {renderMenu()}
+    </Layout.Sider>
+  </>);
 };

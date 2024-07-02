@@ -1,88 +1,61 @@
-import React, { Suspense } from "react";
-
-import { useList } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
+import React, { Suspense, useEffect, useState } from "react";
 
 import { DollarOutlined } from "@ant-design/icons";
 import type { GaugeConfig } from "@ant-design/plots";
 import { Card, Skeleton, Space } from "antd";
 
 import { Text } from "@/components";
-import type { DashboardTotalRevenueQuery } from "@/graphql/types";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 import { currencyNumber } from "@/utilities";
-
-import { DASHBOARD_TOTAL_REVENUE_QUERY } from "./queries";
 
 const Gauge = React.lazy(() => import("@ant-design/plots/es/components/gauge"));
 
-type DealStage = GetFieldsFromList<DashboardTotalRevenueQuery>;
-
 export const DashboardTotalRevenueChart: React.FC = () => {
-  const {
-    data: expectedRevenueData,
-    isError: expectedRevenueIsError,
-    error: expectedRevenueError,
-    isLoading: expectedRevenueIsLoading,
-  } = useList<DealStage>({
-    resource: "dealStages",
-    filters: [
-      {
-        field: "title",
-        operator: "nin",
-        value: ["WON", "LOST"],
-      },
-    ],
-    meta: {
-      gqlQuery: DASHBOARD_TOTAL_REVENUE_QUERY,
-    },
-  });
+  const [expectedRevenueData, setExpectedRevenueData] = useState<number>(0);
+  const [realizedRevenueData, setRealizedRevenueData] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const {
-    data: realizedRevenueData,
-    isError: realizedRevenueIsError,
-    error: realizedRevenueError,
-    isLoading: realizedRevenueIsLoading,
-  } = useList<DealStage>({
-    resource: "dealStages",
-    filters: [
-      {
-        field: "title",
-        operator: "eq",
-        value: "WON",
-      },
-    ],
-    meta: {
-      gqlQuery: DASHBOARD_TOTAL_REVENUE_QUERY,
-    },
-  });
+  useEffect(() => {
+    const fetchRevenueData = async () => {
+      setIsLoading(true);
 
-  if (expectedRevenueIsError || realizedRevenueIsError) {
-    console.error(
-      "Error fetching dashboard data",
-      expectedRevenueError,
-      realizedRevenueError,
-    );
-    return null;
-  }
+      const { data: wonDeals, error: wonDealsError } = await supabaseClient
+        .from("deals")
+        .select("value")
+        .eq("deal_stage_id", 1);
 
-  const totalRealizationRevenue = (realizedRevenueData?.data || []).map(
-    (item) => item.dealsAggregate?.[0]?.sum?.value,
-  )[0];
+      const { data: allDeals, error: allDealsError } = await supabaseClient
+        .from("deals")
+        .select("value")
+  
+        console.log(allDeals, wonDeals)
 
-  const totalExpectedRevenue = (expectedRevenueData?.data || []).reduce(
-    (prev, curr) => prev + (curr?.dealsAggregate?.[0]?.sum?.value ?? 0),
-    0,
-  );
+      if (wonDealsError || allDealsError) {
+        console.error("Error fetching revenue data", wonDealsError, allDealsError);
+        setIsLoading(false);
+        return;
+      }
+
+      const totalRealizedRevenue = wonDeals.reduce((acc, deal) => acc + deal.value, 0);
+
+      const totalExpectedRevenue = allDeals.reduce((acc, deal) => acc + deal.value, 0);
+
+      setExpectedRevenueData(totalExpectedRevenue);
+      setRealizedRevenueData(totalRealizedRevenue);
+      setIsLoading(false);
+    };
+
+    fetchRevenueData();
+  }, []);
 
   const realizationPercentageOfExpected =
-    totalRealizationRevenue && totalExpectedRevenue
-      ? (totalRealizationRevenue / totalExpectedRevenue) * 100
+    realizedRevenueData && expectedRevenueData
+      ? (realizedRevenueData / expectedRevenueData) * 100
       : 0;
 
   const config: GaugeConfig = {
-    animation: !(expectedRevenueIsLoading || realizedRevenueIsLoading),
+    animation: !isLoading,
     supportCSSTransform: true,
-    // antd expects a percentage value between 0 and 1
     percent: realizationPercentageOfExpected / 100,
     range: {
       color: "l(0) 0:#D9F7BE 1:#52C41A",
@@ -151,8 +124,7 @@ export const DashboardTotalRevenueChart: React.FC = () => {
             gap: "8px",
           }}
         >
-          {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
-          <DollarOutlined />
+          <DollarOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />
           <Text size="sm">Total revenue (yearly)</Text>
         </div>
       }
@@ -171,7 +143,7 @@ export const DashboardTotalRevenueChart: React.FC = () => {
           <Text size="xs" className="secondary">
             Expected
           </Text>
-          {!expectedRevenueIsLoading || !realizedRevenueIsLoading ? (
+          {!isLoading ? (
             <Text
               size="md"
               className="primary"
@@ -179,7 +151,7 @@ export const DashboardTotalRevenueChart: React.FC = () => {
                 minWidth: "100px",
               }}
             >
-              {currencyNumber(totalExpectedRevenue || 0)}
+              {currencyNumber(expectedRevenueData || 0)}
             </Text>
           ) : (
             <Skeleton.Button
@@ -196,7 +168,7 @@ export const DashboardTotalRevenueChart: React.FC = () => {
           <Text size="xs" className="secondary">
             Realized
           </Text>
-          {!expectedRevenueIsLoading || !realizedRevenueIsLoading ? (
+          {!isLoading ? (
             <Text
               size="md"
               className="primary"
@@ -204,7 +176,7 @@ export const DashboardTotalRevenueChart: React.FC = () => {
                 minWidth: "100px",
               }}
             >
-              {currencyNumber(totalRealizationRevenue || 0)}
+              {currencyNumber(realizedRevenueData || 0)}
             </Text>
           ) : (
             <Skeleton.Button

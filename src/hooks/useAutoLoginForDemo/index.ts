@@ -6,6 +6,7 @@ import { authProvider, emails } from "@/providers";
  * This hook is used to automatically login the user.
  * We use this hook to skip the login page and demonstrate the application more quickly.
  */
+
 export const useAutoLoginForDemo = () => {
   const [isLoading, setIsLoading] = useState(true);
 

@@ -6,11 +6,9 @@ import { type HttpError, useInvalidate, useNavigation } from "@refinedev/core";
 import { DatePicker, Form, Input, Modal } from "antd";
 import dayjs from "dayjs";
 
-import { SALES_FINALIZE_DEAL_MUTATION } from "./queries";
-import type { GetFields } from "@refinedev/nestjs-query";
-import type { SalesFinalizeDealMutation } from "../../../graphql/types";
+import type { Deal } from "@/graphql/schema.types";
 
-type Deal = GetFields<SalesFinalizeDealMutation>;
+import { finalizeDeal } from "./queries";
 
 type FormValues = {
   notes?: string;
@@ -31,9 +29,7 @@ export const SalesFinalizeDeal = () => {
   >({
     action: "edit",
     defaultVisible: true,
-    meta: {
-      gqlMutation: SALES_FINALIZE_DEAL_MUTATION,
-    },
+    queryFn: finalizeDeal,
     onMutationSuccess: () => {
       invalidate({ invalidates: ["list"], resource: "deals" });
     },
@@ -49,15 +45,15 @@ export const SalesFinalizeDeal = () => {
 
   useEffect(() => {
     const month =
-      queryResult?.data?.data?.closeDateMonth ?? new Date().getMonth();
-    const day = queryResult?.data?.data?.closeDateDay ?? new Date().getDay();
+      queryResult?.data?.close_date_month ?? new Date().getMonth();
+    const day = queryResult?.data?.close_date_day ?? new Date().getDate();
     const year =
-      queryResult?.data?.data?.closeDateYear ?? new Date().getFullYear();
+      queryResult?.data?.close_date_year ?? new Date().getFullYear();
 
     formProps.form?.setFieldsValue({
       closeDate: dayjs(new Date(year, month - 1, day)),
     });
-  }, [queryResult?.data?.data]);
+  }, [queryResult?.data]);
 
   return (
     <Modal

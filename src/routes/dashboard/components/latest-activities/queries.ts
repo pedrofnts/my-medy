@@ -1,52 +1,37 @@
-import gql from "graphql-tag";
-
-export const DEALS_QUERY = gql`
-    query LatestActivitiesDeals(
-        $filter: DealFilter!
-        $sorting: [DealSort!]!
-        $paging: OffsetPaging!
-    ) {
-        deals(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
+export const DEALS_QUERY = `
+    query LatestActivitiesDeals {
+        deals {
+            id
+            title
+            deal_stage_id
+            company_id
+            companies {
                 id
-                title
-                stage {
-                    id
-                    title
-                }
-                company {
-                    id
-                    name
-                    avatarUrl
-                }
+                name
+                avatar_url
             }
         }
     }
 `;
 
-export const AUDITS_QUERY = gql`
-    query LatestActivitiesAudits(
-        $filter: AuditFilter!
-        $sorting: [AuditSort!]!
-        $paging: OffsetPaging!
-    ) {
-        audits(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
+export const AUDITS_QUERY = `
+    query LatestActivitiesAudits {
+        audits {
+            id
+            action
+            target_entity
+            target_id
+            created_at
+            changes {
+                field
+                from
+                to
+            }
+            user_id
+            users {
                 id
-                action
-                targetEntity
-                targetId
-                createdAt
-                changes {
-                    field
-                    from
-                    to
-                }
-                user {
-                    id
-                    name
-                    avatarUrl
-                }
+                name
+                avatar_url
             }
         }
     }

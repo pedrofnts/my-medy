@@ -1,20 +1,42 @@
 import type { FC } from "react";
 
 import { useDelete, useNavigation } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
 import { DeleteOutlined, EyeOutlined, MoreOutlined } from "@ant-design/icons";
 import { Button, Card, Dropdown, Space, Tooltip } from "antd";
 
 import { CustomAvatar, Text } from "@/components";
-import type { CompaniesTableQuery } from "@/graphql/types";
 import { currencyNumber } from "@/utilities";
 
 import { AvatarGroup } from "../../avatar-group";
 import { CompanyCardSkeleton } from "./skeleton";
 
+type Company = {
+  id: string;
+  name: string;
+  avatar_url: string;
+  sales_owner_id: string;
+  sales_owner: {
+    id: string;
+    name: string;
+    avatar_url: string;
+  };
+  dealsAggregate: {
+    sum: {
+      value: number;
+    };
+  }[];
+  contacts: {
+    nodes: {
+      id: string;
+      name: string;
+      avatar_url: string;
+    }[];
+  };
+};
+
 type Props = {
-  company: GetFieldsFromList<CompaniesTableQuery> | null;
+  company: Company | null;
 };
 
 export const CompanyCard: FC<Props> = ({ company }) => {
@@ -26,7 +48,7 @@ export const CompanyCard: FC<Props> = ({ company }) => {
   const relatedContactAvatars = company?.contacts?.nodes?.map((contact) => {
     return {
       name: contact.name,
-      src: contact.avatarUrl as string | undefined,
+      src: contact.avatar_url as string | undefined,
     };
   });
 
@@ -71,12 +93,12 @@ export const CompanyCard: FC<Props> = ({ company }) => {
           >
             <Text size="xs">Sales owner</Text>
             <Tooltip
-              title={company.salesOwner?.name}
-              key={company.salesOwner?.id}
+              title={company.sales_owner?.name}
+              key={company.sales_owner?.id}
             >
               <CustomAvatar
-                name={company.salesOwner?.name}
-                src={company.salesOwner?.avatarUrl}
+                name={company.sales_owner?.name}
+                src={company.sales_owner?.avatar_url}
               />
             </Tooltip>
           </div>
@@ -97,8 +119,7 @@ export const CompanyCard: FC<Props> = ({ company }) => {
               {
                 label: "View company",
                 key: "1",
-                // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-                icon: <EyeOutlined />,
+                icon: <EyeOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />,
                 onClick: () => {
                   edit("companies", company.id);
                 },
@@ -107,11 +128,10 @@ export const CompanyCard: FC<Props> = ({ company }) => {
                 danger: true,
                 label: "Delete company",
                 key: "2",
-                // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-                icon: <DeleteOutlined />,
+                icon: <DeleteOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />,
                 onClick: () => {
                   mutate({
-                    resource: "company",
+                    resource: "companies",
                     id: company.id,
                   });
                 },
@@ -129,20 +149,13 @@ export const CompanyCard: FC<Props> = ({ company }) => {
               top: 0,
               right: 0,
             }}
-            icon={
-              // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-              <MoreOutlined
-                style={{
-                  transform: "rotate(90deg)",
-                }}
-              />
-            }
+            icon={<MoreOutlined style={{ transform: "rotate(90deg)" }} onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />}
           />
         </Dropdown>
 
         <CustomAvatar
           name={company.name}
-          src={company.avatarUrl}
+          src={company.avatar_url}
           shape="square"
           style={{
             width: "48px",

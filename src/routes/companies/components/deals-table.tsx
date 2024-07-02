@@ -14,24 +14,20 @@ import {
 import { Button, Card, Input, Select, Skeleton, Space, Table, Tag } from "antd";
 
 import { Participants, Text } from "@/components";
-import type {
-  CompanyDealsTableQuery,
-  CompanyTotalDealsAmountQuery,
-} from "@/graphql/types";
 import { useDealStagesSelect } from "@/hooks/useDealStagesSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 import { currencyNumber } from "@/utilities";
 
 import {
-  COMPANY_DEALS_TABLE_QUERY,
-  COMPANY_TOTAL_DEALS_AMOUNT_QUERY,
+  fetchCompanyDeals,
+  fetchCompanyTotalDealsAmount,
 } from "./queries";
 
 type Props = {
   style?: React.CSSProperties;
 };
 
-type Deal = GetFieldsFromList<CompanyDealsTableQuery>;
+type Deal = GetFieldsFromList<typeof fetchCompanyDeals>;
 
 export const CompanyDealsTable: FC<Props> = ({ style }) => {
   const { listUrl } = useNavigation();
@@ -63,24 +59,22 @@ export const CompanyDealsTable: FC<Props> = ({ style }) => {
       ],
       permanent: [
         {
-          field: "company.id",
+          field: "company_id",
           operator: "eq",
           value: params.id,
         },
       ],
     },
     meta: {
-      gqlQuery: COMPANY_DEALS_TABLE_QUERY,
+      queryFn: fetchCompanyDeals,
     },
   });
 
-  const { data: companyData, isLoading: isLoadingCompany } = useOne<
-    GetFields<CompanyTotalDealsAmountQuery>
-  >({
+  const { data: companyData, isLoading: isLoadingCompany } = useOne<GetFields<typeof fetchCompanyTotalDealsAmount>>({
     resource: "companies",
     id: params.id,
     meta: {
-      gqlQuery: COMPANY_TOTAL_DEALS_AMOUNT_QUERY,
+      queryFn: fetchCompanyTotalDealsAmount,
     },
   });
 
@@ -93,7 +87,7 @@ export const CompanyDealsTable: FC<Props> = ({ style }) => {
 
   const showResetFilters = useMemo(() => {
     return filters?.filter((filter) => {
-      if ("field" in filter && filter.field === "company.id") {
+      if ("field" in filter && filter.field === "company_id") {
         return false;
       }
 
@@ -134,7 +128,7 @@ export const CompanyDealsTable: FC<Props> = ({ style }) => {
           ) : (
             <Text strong>
               {currencyNumber(
-                companyData?.data.dealsAggregate?.[0]?.sum?.value || 0,
+                companyData?.dealsAggregate?.[0]?.sum?.value || 0,
               )}
             </Text>
           )}

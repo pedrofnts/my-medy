@@ -1,4 +1,4 @@
-import React, { type FC, type PropsWithChildren, Suspense } from "react";
+import React, { FC, PropsWithChildren, Suspense, useEffect, useState } from "react";
 
 import { AuditOutlined, ShopOutlined, TeamOutlined } from "@ant-design/icons";
 import type { AreaConfig } from "@ant-design/plots";
@@ -6,6 +6,7 @@ import { Card, Skeleton } from "antd";
 
 import { Text } from "@/components";
 
+import { supabaseClient } from "../../../../providers/data/supabaseClient";
 import styles from "./index.module.css";
 
 const Area = React.lazy(() => import("@ant-design/plots/es/components/area"));
@@ -14,10 +15,30 @@ type Type = "companies" | "contacts" | "deals";
 
 export const DashboardTotalCountCard: React.FC<{
   resource: Type;
-  isLoading: boolean;
-  totalCount?: number;
-}> = ({ resource, isLoading, totalCount }) => {
+}> = ({ resource }) => {
   const { primaryColor, secondaryColor, icon, title } = variants[resource];
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchTotalCount = async () => {
+      setIsLoading(true);
+      const { data, error, count } = await supabaseClient
+        .from(resource)
+        .select("*", { count: "exact", head: true });
+
+      if (error) {
+        console.error(`Error fetching ${resource} count:`, error);
+        setTotalCount(null);
+      } else {
+        setTotalCount(count || 0);
+      }
+      setIsLoading(false);
+    };
+
+    fetchTotalCount();
+  }, [resource]);
 
   const config: AreaConfig = {
     className: styles.area,
@@ -112,10 +133,7 @@ export const DashboardTotalCountCard: React.FC<{
   );
 };
 
-const IconWrapper: FC<PropsWithChildren<{ color: string }>> = ({
-  color,
-  children,
-}) => {
+const IconWrapper: FC<PropsWithChildren<{ color: string }>> = ({ color, children }) => {
   return (
     <div
       style={{
@@ -147,13 +165,11 @@ const variants: {
     secondaryColor: "#BAE0FF",
     icon: (
       <IconWrapper color="#E6F4FF">
-        {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
         <ShopOutlined
           className="md"
           style={{
             color: "#1677FF",
-          }}
-        />
+          }} onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined}        />
       </IconWrapper>
     ),
     title: "Number of companies",
@@ -185,13 +201,11 @@ const variants: {
     secondaryColor: "#D9F7BE",
     icon: (
       <IconWrapper color="#F6FFED">
-        {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
         <TeamOutlined
           className="md"
           style={{
             color: "#52C41A",
-          }}
-        />
+          }} onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined}        />
       </IconWrapper>
     ),
     title: "Number of contacts",
@@ -227,13 +241,11 @@ const variants: {
     secondaryColor: "#FFD8BF",
     icon: (
       <IconWrapper color="#FFF2E8">
-        {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
         <AuditOutlined
           className="md"
           style={{
             color: "#FA541C",
-          }}
-        />
+          }} onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined}        />
       </IconWrapper>
     ),
     title: "Total deals in pipeline",

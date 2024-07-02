@@ -28,7 +28,7 @@ export const ContactCreatePage: React.FC<PropsWithChildren> = ({
 
     if (companyId && companyId !== "null") {
       formProps.form?.setFieldsValue({
-        companyId,
+        company_id: companyId,
       });
     }
   }, [searchParams]);
@@ -56,7 +56,8 @@ export const ContactCreatePage: React.FC<PropsWithChildren> = ({
           onFinish={(values) => {
             onFinish({
               ...values,
-              salesOwnerId: user?.id,
+              sales_owner_id: user?.id,
+              status: "NEW", // Define o status como "NEW"
             });
           }}
         >
@@ -77,6 +78,18 @@ export const ContactCreatePage: React.FC<PropsWithChildren> = ({
             rules={[
               {
                 required: true,
+                type: "email",
+              },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Phone"
+            name="phone"
+            rules={[
+              {
+                required: true,
               },
             ]}
           >
@@ -84,7 +97,7 @@ export const ContactCreatePage: React.FC<PropsWithChildren> = ({
           </Form.Item>
           <Form.Item
             label="Company"
-            name="companyId"
+            name="company_id"
             rules={[
               {
                 required: true,
@@ -94,8 +107,10 @@ export const ContactCreatePage: React.FC<PropsWithChildren> = ({
               <Button
                 style={{ paddingLeft: 0 }}
                 type="link"
-                // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-                icon={<PlusCircleOutlined />}
+                icon={
+                  // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
+                  <PlusCircleOutlined />
+                }
                 onClick={() => {
                   replace("company-create?to=/contacts/create");
                 }}

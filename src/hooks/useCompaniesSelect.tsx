@@ -1,32 +1,25 @@
 import { useSelect } from "@refinedev/antd";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-import type { CompaniesSelectQuery } from "@/graphql/types";
+const fetchCompanies = async () => {
+  const { data, error } = await supabaseClient.from("companies").select(`
+    id,
+    name,
+    avatar_url
+  `);
 
-const COMPANIES_SELECT_QUERY = gql`
-    query CompaniesSelect(
-        $filter: CompanyFilter!
-        $sorting: [CompanySort!]
-        $paging: OffsetPaging!
-    ) {
-        companies(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                name
-                avatarUrl
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
 
 export const useCompaniesSelect = () => {
-  return useSelect<GetFieldsFromList<CompaniesSelectQuery>>({
+  return useSelect({
     resource: "companies",
     optionLabel: "name",
-    meta: {
-      gqlQuery: COMPANIES_SELECT_QUERY,
-    },
+    queryFn: fetchCompanies,
   });
 };

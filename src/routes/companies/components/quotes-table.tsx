@@ -15,17 +15,16 @@ import { Button, Card, Input, Select, Space, Table } from "antd";
 
 import { Participants, QuoteStatusTag, Text } from "@/components";
 import type { QuoteStatus } from "@/graphql/schema.types";
-import type { CompanyQuotesTableQuery } from "@/graphql/types";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 import { currencyNumber } from "@/utilities";
 
-import { COMPANY_QUOTES_TABLE_QUERY } from "./queries";
+import { fetchCompanyQuotes } from "./queries";
 
 type Props = {
   style?: React.CSSProperties;
 };
 
-type Quote = GetFieldsFromList<CompanyQuotesTableQuery>;
+type Quote = GetFieldsFromList<any>;
 
 export const CompanyQuotesTable: FC<Props> = ({ style }) => {
   const { listUrl } = useNavigation();
@@ -64,7 +63,7 @@ export const CompanyQuotesTable: FC<Props> = ({ style }) => {
       ],
     },
     meta: {
-      gqlQuery: COMPANY_QUOTES_TABLE_QUERY,
+      fetchQuotes: fetchCompanyQuotes,
     },
   });
 

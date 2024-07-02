@@ -1,74 +1,72 @@
-import React from "react";
-
-import { useList } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
+import React, { useEffect, useState } from "react";
 
 import { UnorderedListOutlined } from "@ant-design/icons";
 import { Card, Skeleton as AntdSkeleton } from "antd";
 import dayjs from "dayjs";
 
 import { CustomAvatar, Text } from "@/components";
-import type {
-  LatestActivitiesAuditsQuery,
-  LatestActivitiesDealsQuery,
-} from "@/graphql/types";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
 import styles from "./index.module.css";
-import { AUDITS_QUERY, DEALS_QUERY } from "./queries";
 
 export const DashboardLatestActivities: React.FC<{ limit?: number }> = ({
   limit = 5,
 }) => {
-  const { data: deals, isLoading: isLoadingDeals } = useList<
-    GetFieldsFromList<LatestActivitiesDealsQuery>
-  >({
-    resource: "deals",
-    pagination: {
-      mode: "off",
-    },
-    meta: {
-      gqlQuery: DEALS_QUERY,
-    },
-  });
-  const {
-    data: audit,
-    isLoading: isLoadingAudit,
-    isError,
-    error,
-  } = useList<GetFieldsFromList<LatestActivitiesAuditsQuery>>({
-    resource: "audits",
-    pagination: {
-      pageSize: limit,
-    },
-    sorters: [
-      {
-        field: "createdAt",
-        order: "desc",
-      },
-    ],
-    filters: [
-      {
-        field: "action",
-        operator: "in",
-        value: ["CREATE", "UPDATE"],
-      },
-      {
-        field: "targetEntity",
-        operator: "eq",
-        value: "Deal",
-      },
-    ],
-    meta: {
-      gqlQuery: AUDITS_QUERY,
-    },
-  });
+  const [deals, setDeals] = useState([]);
+  const [audit, setAudit] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (isError) {
-    console.error("Error fetching latest activities", error);
-    return null;
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
 
-  const isLoading = isLoadingAudit || isLoadingDeals;
+      const { data: dealsData, error: dealsError } = await supabaseClient
+        .from("deals")
+        .select(`
+          id,
+          title,
+          deal_stage_id,
+          company_id,
+          companies (
+            id,
+            name,
+            avatar_url
+          )
+        `);
+
+      const { data: auditsData, error: auditsError } = await supabaseClient
+        .from("audits")
+        .select(`
+          id,
+          action,
+          target_entity,
+          target_id,
+          created_at,
+          changes,
+          user_id,
+          users (
+            id,
+            name,
+            avatar_url
+          )
+        `)
+        .eq("target_entity", "Deal")
+        .in("action", ["CREATE", "UPDATE"])
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (dealsError || auditsError) {
+        console.error("Error fetching latest activities", dealsError, auditsError);
+      } else {
+        setDeals(dealsData);
+        setAudit(auditsData);
+      }
+
+      setIsLoading(false);
+    };
+
+    fetchData();
+  }, [limit]);
 
   return (
     <Card
@@ -84,7 +82,6 @@ export const DashboardLatestActivities: React.FC<{ limit?: number }> = ({
             gap: "8px",
           }}
         >
-          {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
           <UnorderedListOutlined />
           <Text size="sm" style={{ marginLeft: ".5rem" }}>
             Latest activities
@@ -97,9 +94,8 @@ export const DashboardLatestActivities: React.FC<{ limit?: number }> = ({
           <Skeleton key={index} />
         ))}
       {!isLoading &&
-        audit?.data.map(({ id, user, createdAt, action, targetId }) => {
-          const deal =
-            deals?.data.find((task) => task.id === `${targetId}`) || undefined;
+        audit.map(({ id, users, created_at, action, target_id }) => {
+          const deal = deals.find((deal) => deal.id === target_id);
 
           return (
             <div key={id} className={styles.item}>
@@ -107,24 +103,24 @@ export const DashboardLatestActivities: React.FC<{ limit?: number }> = ({
                 <CustomAvatar
                   shape="square"
                   size={48}
-                  src={deal?.company.avatarUrl}
-                  name={deal?.company.name}
+                  src={deal?.companies.avatar_url}
+                  name={deal?.companies.name}
                 />
               </div>
               <div className={styles.action}>
                 <Text type="secondary" size="xs">
-                  {dayjs(createdAt).fromNow()}
+                  {dayjs(created_at).fromNow()}
                 </Text>
 
                 <Text className={styles.detail}>
                   <Text className={styles.name} strong>
-                    {user?.name}
+                    {users?.name}
                   </Text>
                   <Text>{action === "CREATE" ? "created" : "moved"}</Text>
                   <Text strong>{deal?.title}</Text>
                   <Text>deal</Text>
                   <Text>{action === "CREATE" ? "in" : "to"}</Text>
-                  <Text strong>{deal?.stage?.title || "Unassigned"}.</Text>
+                  <Text strong>{deal?.deal_stage_id || "Unassigned"}.</Text>
                 </Text>
               </div>
             </div>

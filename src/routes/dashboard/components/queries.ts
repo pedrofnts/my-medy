@@ -1,43 +1,33 @@
-import gql from "graphql-tag";
+import { supabaseClient } from "../../../providers/data/supabaseClient";
 
-export const DASHBOARD_DEALS_CHART_QUERY = gql`
-    query DashboardDealsChart(
-        $filter: DealStageFilter!
-        $sorting: [DealStageSort!]
-        $paging: OffsetPaging!
-    ) {
-        dealStages(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                title
-                dealsAggregate {
-                    groupBy {
-                        closeDateMonth
-                        closeDateYear
-                    }
-                    sum {
-                        value
-                    }
-                }
-            }
-        }
-    }
-`;
+export const fetchDashboardDealsChartData = async () => {
+  const { data, error } = await supabaseClient.from("deal_stages").select(`
+            title,
+            deals!deal_stage_id (
+                close_date_month,
+                close_date_year,
+                value
+            )
+        `);
 
-export const DASHBOARD_TASKS_CHART_QUERY = gql`
-    query DashboardTasksChart(
-        $filter: TaskStageFilter!
-        $sorting: [TaskStageSort!]
-        $paging: OffsetPaging!
-    ) {
-        taskStages(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                title
-                tasksAggregate {
-                    count {
-                        id
-                    }
-                }
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchDashboardTasksChartData = async () => {
+  const { data, error } = await supabaseClient.from("task_stages").select(`
+            title,
+            tasks (
+                id
+            )
+        `);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};

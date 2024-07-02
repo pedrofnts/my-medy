@@ -1,28 +1,24 @@
 import { useSelect } from "@refinedev/antd";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-import type { DealStagesSelectQuery } from "@/graphql/types";
+export const fetchDealStages = async () => {
+  const { data, error } = await supabaseClient.from("deal_stages").select(`
+    id,
+    title
+  `);
 
-const DEAL_STAGES_SELECT_QUERY = gql`
-    query DealStagesSelect(
-        $filter: DealStageFilter!
-        $sorting: [DealStageSort!]
-        $paging: OffsetPaging!
-    ) {
-        dealStages(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                title
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
 
 export const useDealStagesSelect = () => {
-  return useSelect<GetFieldsFromList<DealStagesSelectQuery>>({
-    resource: "dealStages",
-    meta: { gqlQuery: DEAL_STAGES_SELECT_QUERY },
+  return useSelect({
+    resource: "deal_stages",
+    optionLabel: "title",
+    queryFn: fetchDealStages,
   });
 };

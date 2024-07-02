@@ -1,53 +1,56 @@
-import React, { lazy, Suspense, useMemo } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import { useList, useNavigation } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
+import { useNavigation } from "@refinedev/core";
 
 import { ProjectOutlined, RightCircleOutlined } from "@ant-design/icons";
-import type { PieConfig } from "@ant-design/plots";
-import { Button, Card } from "antd";
+import { Button, Card, Spin } from "antd";
 
-import { Text } from "@/components";
-import type { DashboardTasksChartQuery } from "@/graphql/types";
-
-import { DASHBOARD_TASKS_CHART_QUERY } from "./queries";
+import { fetchDashboardTasksChartData } from "./queries";
 
 const Pie = lazy(() => import("@ant-design/plots/es/components/pie"));
 
 export const DashboardTasksChart: React.FC = () => {
   const { list } = useNavigation();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data, isError, error } = useList<
-    GetFieldsFromList<DashboardTasksChartQuery>
-  >({
-    resource: "taskStages",
-    pagination: {
-      pageSize: 4,
-    },
-    meta: { gqlQuery: DASHBOARD_TASKS_CHART_QUERY },
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await fetchDashboardTasksChartData();
+        setData(result);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (isError) {
-    console.error("Error fetching task chart data", error);
-    return null;
+    fetchData();
+  }, []);
+
+  if (error) {
+    console.error("Error fetching tasks chart data", error);
+    return <div>Error: {error}</div>;
   }
 
   const tasksData = useMemo(() => {
-    if (!data?.data?.length) {
+    if (!data?.length) {
       return [];
     }
 
-    return data.data
-      .map((stage) => ({
+    return data
+      .map((stage: any) => ({
         title: stage.title,
-        value: stage.tasksAggregate?.[0]?.count?.id ?? 0,
+        value: stage.tasks?.length ?? 0,
       }))
       .filter(
         (stage) =>
           stage.value !== null && stage.value !== undefined && stage.value > 0,
       )
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-  }, [data?.data]);
+  }, [data]);
 
   const COLORS = [
     "#BAE0FF",
@@ -95,15 +98,11 @@ export const DashboardTasksChart: React.FC = () => {
             gap: "8px",
           }}
         >
-          {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
           <ProjectOutlined />
-          <Text size="sm" style={{ marginLeft: ".5rem" }}>
-            Tasks
-          </Text>
+          <span style={{ marginLeft: ".5rem" }}>Tasks</span>
         </div>
       }
       extra={
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         <Button onClick={() => list("tasks")} icon={<RightCircleOutlined />}>
           See kanban board
         </Button>
@@ -117,9 +116,13 @@ export const DashboardTasksChart: React.FC = () => {
           alignItems: "center",
         }}
       >
-        <Suspense>
-          <Pie {...config} />
-        </Suspense>
+        {loading ? (
+          <Spin size="large" />
+        ) : (
+          <Suspense fallback={<Spin size="large" />}>
+            <Pie {...config} />
+          </Suspense>
+        )}
       </div>
       <div
         style={{
@@ -147,15 +150,14 @@ export const DashboardTasksChart: React.FC = () => {
                 marginRight: ".5rem",
               }}
             />
-            <Text
-              size="md"
+            <span
               style={{
                 textTransform: "capitalize",
                 whiteSpace: "nowrap",
               }}
             >
               {item.title.toLowerCase()}
-            </Text>
+            </span>
           </div>
         ))}
       </div>

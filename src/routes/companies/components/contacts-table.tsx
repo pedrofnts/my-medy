@@ -34,17 +34,13 @@ import {
 
 import { ContactStatusTag, CustomAvatar, Text } from "@/components";
 import type { ContactCreateInput } from "@/graphql/schema.types";
-import type {
-  CompanyContactsGetCompanyQuery,
-  CompanyContactsTableQuery,
-} from "@/graphql/types";
 
 import {
-  COMPANY_CONTACTS_GET_COMPANY_QUERY,
-  COMPANY_CONTACTS_TABLE_QUERY,
+  fetchCompany,
+  fetchCompanyContacts,
 } from "./queries";
 
-type Contact = GetFieldsFromList<CompanyContactsTableQuery>;
+type Contact = GetFieldsFromList<typeof fetchCompanyContacts>;
 
 export const CompanyContactsTable: FC = () => {
   const params = useParams();
@@ -63,7 +59,7 @@ export const CompanyContactsTable: FC = () => {
     filters: {
       initial: [
         {
-          field: "jobTitle",
+          field: "job_title",
           value: "",
           operator: "contains",
         },
@@ -80,14 +76,14 @@ export const CompanyContactsTable: FC = () => {
       ],
       permanent: [
         {
-          field: "company.id",
+          field: "company_id",
           operator: "eq",
           value: params.id,
         },
       ],
     },
     meta: {
-      gqlQuery: COMPANY_CONTACTS_TABLE_QUERY,
+      queryFn: fetchCompanyContacts,
     },
   });
 
@@ -97,7 +93,7 @@ export const CompanyContactsTable: FC = () => {
 
   const showResetFilters = useMemo(() => {
     return filters?.filter((filter) => {
-      if ("field" in filter && filter.field === "company.id") {
+      if ("field" in filter && filter.field === "company_id") {
         return false;
       }
 
@@ -164,7 +160,7 @@ export const CompanyContactsTable: FC = () => {
             render={(_, record) => {
               return (
                 <Space>
-                  <CustomAvatar name={record.name} src={record.avatarUrl} />
+                  <CustomAvatar name={record.name} src={record.avatar_url} />
                   <Text
                     style={{
                       whiteSpace: "nowrap",
@@ -185,7 +181,7 @@ export const CompanyContactsTable: FC = () => {
           />
           <Table.Column
             title="Title"
-            dataIndex="jobTitle"
+            dataIndex="job_title"
             // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
             filterIcon={<SearchOutlined />}
             filterDropdown={(props) => (
@@ -254,11 +250,11 @@ type ContactFormValues = {
 const ContactForm = () => {
   const { id = "" } = useParams();
 
-  const { data } = useOne<GetFields<CompanyContactsGetCompanyQuery>>({
+  const { data } = useOne<GetFields<typeof fetchCompany>>({
     id,
     resource: "companies",
     meta: {
-      gqlQuery: COMPANY_CONTACTS_GET_COMPANY_QUERY,
+      queryFn: fetchCompany,
     },
   });
 
@@ -277,7 +273,7 @@ const ContactForm = () => {
     const contacts = args.contacts.map((contact) => ({
       ...contact,
       companyId: id,
-      salesOwnerId: data?.data.salesOwner?.id || "",
+      salesOwnerId: data?.sales_owner?.id || "",
     }));
 
     await mutateAsync({

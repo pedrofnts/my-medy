@@ -1,20 +1,8 @@
-import gql from "graphql-tag";
-
-export const DASHBOARD_TOTAL_REVENUE_QUERY = gql`
-    query DashboardTotalRevenue(
-        $filter: DealStageFilter!
-        $sorting: [DealStageSort!]
-        $paging: OffsetPaging!
-    ) {
-        dealStages(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                title
-                dealsAggregate {
-                    sum {
-                        value
-                    }
-                }
-            }
-        }
-    }
+export const DASHBOARD_TOTAL_REVENUE_QUERY = `
+  SELECT
+    deal_stage_id,
+    SUM(value) as value
+  FROM deals
+  GROUP BY
+    deal_stage_id;
 `;

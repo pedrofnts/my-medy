@@ -1,35 +1,35 @@
 import { useSelect } from "@refinedev/antd";
-import type { CrudFilters } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-import type { ContactsSelectQuery } from "@/graphql/types";
+export const fetchContacts = async ({ filters }) => {
+  let query = supabaseClient.from("contacts").select(`
+    id,
+    name,
+    avatar_url
+  `);
 
-const CONTACTS_SELECT_QUERY = gql`
-    query ContactsSelect(
-        $filter: ContactFilter!
-        $sorting: [ContactSort!]
-        $paging: OffsetPaging!
-    ) {
-        contacts(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                name
-                avatarUrl
-            }
-        }
-    }
-`;
+  if (filters) {
+    filters.forEach((filter) => {
+      query = query.eq(filter.field, filter.value);
+    });
+  }
 
-export const useContactsSelect = (params?: { filters?: CrudFilters }) => {
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const useContactsSelect = (params?: { filters?: any[] }) => {
   const { filters } = params || {};
-  return useSelect<GetFieldsFromList<ContactsSelectQuery>>({
+  return useSelect({
     resource: "contacts",
     optionLabel: "name",
     filters,
-    meta: {
-      gqlQuery: CONTACTS_SELECT_QUERY,
-    },
+    queryFn: fetchContacts,
   });
 };

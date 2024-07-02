@@ -9,7 +9,6 @@ import {
   useList,
   useParsed,
 } from "@refinedev/core";
-import type { GetFieldsFromList, GetVariables } from "@refinedev/nestjs-query";
 
 import { LoadingOutlined } from "@ant-design/icons";
 import { Button, Card, Form, Input, Space, Typography } from "antd";
@@ -17,22 +16,27 @@ import dayjs from "dayjs";
 
 import { CustomAvatar, Text, TextIcon } from "@/components";
 import type { User } from "@/graphql/schema.types";
-import type {
-  CompanyCompanyNotesQuery,
-  CompanyCreateCompanyNoteMutationVariables,
-} from "@/graphql/types";
 
 import {
-  COMPANY_COMPANY_NOTES_QUERY,
-  COMPANY_CREATE_COMPANY_NOTE_MUTATION,
-  COMPANY_UPDATE_COMPANY_NOTE_MUTATION,
+  createCompanyNote,
+  fetchCompanyNotes,
+  updateCompanyNote,
 } from "./queries";
 
 type Props = {
   style?: React.CSSProperties;
 };
 
-type CompanyNote = GetFieldsFromList<CompanyCompanyNotesQuery>;
+type CompanyNote = {
+  id: number;
+  note: string;
+  created_at: string;
+  created_by: {
+    id: number;
+    name: string;
+    avatar_url: string;
+  };
+};
 
 export const CompanyNotes: FC<Props> = ({ style }) => {
   return (
@@ -70,7 +74,7 @@ export const CompanyNoteForm = () => {
   const { formProps, onFinish, form, formLoading } = useForm<
     CompanyNote,
     HttpError,
-    GetVariables<CompanyCreateCompanyNoteMutationVariables>
+    { note: string }
   >({
     action: "create",
     resource: "companyNotes",
@@ -86,13 +90,11 @@ export const CompanyNoteForm = () => {
       type: "success",
     }),
     meta: {
-      gqlMutation: COMPANY_CREATE_COMPANY_NOTE_MUTATION,
+      createNote: createCompanyNote,
     },
   });
 
-  const handleOnFinish = async (
-    values: GetVariables<CompanyCreateCompanyNoteMutationVariables>,
-  ) => {
+  const handleOnFinish = async (values: { note: string }) => {
     if (!companyId) {
       return;
     }
@@ -103,13 +105,16 @@ export const CompanyNoteForm = () => {
     }
 
     try {
-      await onFinish({
-        ...values,
-        companyId: companyId as string,
-      });
+      await createCompanyNote(
+        note,
+        parseInt(companyId, 10),
+        me?.id ?? 0
+      );
 
       form.resetFields();
-    } catch (error) {}
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -125,7 +130,7 @@ export const CompanyNoteForm = () => {
       <CustomAvatar
         style={{ flexShrink: 0 }}
         name={me?.name}
-        src={me?.avatarUrl}
+        src={me?.avatar_url}
       />
       <Form {...formProps} style={{ width: "100%" }} onFinish={handleOnFinish}>
         <Form.Item
@@ -168,14 +173,14 @@ export const CompanyNoteList = () => {
     ],
     filters: [{ field: "company.id", operator: "eq", value: params.id }],
     meta: {
-      gqlQuery: COMPANY_COMPANY_NOTES_QUERY,
+      fetchNotes: fetchCompanyNotes,
     },
   });
 
   const { formProps, setId, id, saveButtonProps } = useForm<
     CompanyNote,
     HttpError,
-    CompanyNote
+    { note: string }
   >({
     resource: "companyNotes",
     action: "edit",
@@ -197,7 +202,7 @@ export const CompanyNoteList = () => {
       type: "success",
     }),
     meta: {
-      gqlMutation: COMPANY_UPDATE_COMPANY_NOTE_MUTATION,
+      updateNote: updateCompanyNote,
     },
   });
 
@@ -214,15 +219,15 @@ export const CompanyNoteList = () => {
         width: "100%",
       }}
     >
-      {notes?.data?.map((item) => {
-        const isMe = me?.id === item.createdBy.id;
+      {notes?.map((item) => {
+        const isMe = me?.id === item.created_by.id;
 
         return (
           <div key={item.id} style={{ display: "flex", gap: "12px" }}>
             <CustomAvatar
               style={{ flexShrink: 0 }}
-              name={item.createdBy.name}
-              src={item.createdBy.avatarUrl}
+              name={item.created_by.name}
+              src={item.created_by.avatar_url}
             />
 
             <div
@@ -240,9 +245,9 @@ export const CompanyNoteList = () => {
                   alignItems: "center",
                 }}
               >
-                <Text style={{ fontWeight: 500 }}>{item.createdBy.name}</Text>
+                <Text style={{ fontWeight: 500 }}>{item.created_by.name}</Text>
                 <Text size="xs" style={{ color: "#000000a6" }}>
-                  {dayjs(item.createdAt).format("MMMM D, YYYY - h:ma")}
+                  {dayjs(item.created_at).format("MMMM D, YYYY - h:ma")}
                 </Text>
               </div>
 

@@ -1,147 +1,178 @@
-import type { AuthProvider } from "@refinedev/core";
+import type { AuthBindings } from "@refinedev/core";
 
-import type { User } from "@/graphql/schema.types";
-import { disableAutoLogin, enableAutoLogin } from "@/hooks";
+import { supabaseClient } from "./data/supabaseClient";
 
-import { API_BASE_URL, API_URL, client, dataProvider } from "./data";
-
-export const emails = [
-  "michael.scott@dundermifflin.com",
-  "jim.halpert@dundermifflin.com",
-  "pam.beesly@dundermifflin.com",
-  "dwight.schrute@dundermifflin.com",
-  "angela.martin@dundermifflin.com",
-  "stanley.hudson@dundermifflin.com",
-  "phyllis.smith@dundermifflin.com",
-  "kevin.malone@dundermifflin.com",
-  "oscar.martinez@dundermifflin.com",
-  "creed.bratton@dundermifflin.com",
-  "meredith.palmer@dundermifflin.com",
-  "ryan.howard@dundermifflin.com",
-  "kelly.kapoor@dundermifflin.com",
-  "andy.bernard@dundermifflin.com",
-  "toby.flenderson@dundermifflin.com",
-];
-
-const randomEmail = emails[Math.floor(Math.random() * emails.length)];
-
-export const demoCredentials = {
-  email: randomEmail,
-  password: "demodemo",
-};
-
-export const authProvider: AuthProvider = {
-  login: async ({ email, providerName, accessToken, refreshToken }) => {
-    if (accessToken && refreshToken) {
-      client.setHeaders({
-        Authorization: `Bearer ${accessToken}`,
-      });
-
-      localStorage.setItem("access_token", accessToken);
-      localStorage.setItem("refresh_token", refreshToken);
-
-      return {
-        success: true,
-        redirectTo: "/",
-      };
-    }
-
-    if (providerName) {
-      window.location.href = `${API_BASE_URL}/auth/${providerName}`;
-
-      return {
-        success: true,
-      };
-    }
-
+const authProvider: AuthBindings = {
+  login: async ({ email, password, providerName }) => {
+    // Sign in with OAuth
     try {
-      const { data } = await dataProvider.custom({
-        url: API_URL,
-        method: "post",
-        headers: {},
-        meta: {
-          variables: { email },
-          rawQuery: `
-                mutation Login($email: String!) {
-                    login(loginInput: {
-                      email: $email
-                    }) {
-                      accessToken,
-                      refreshToken
-                    }
-                  }
-                `,
-        },
+      if (providerName) {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+          provider: providerName,
+        });
+
+        if (error) {
+          return {
+            success: false,
+            error,
+          };
+        }
+
+        if (data?.url) {
+          return {
+            success: true,
+            redirectTo: "/",
+          };
+        }
+      }
+
+      // Sign in with email and password
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      client.setHeaders({
-        Authorization: `Bearer ${data.login.accessToken}`,
-      });
+      if (error) {
+        return {
+          success: false,
+          error,
+        };
+      }
 
-      enableAutoLogin(email);
-      localStorage.setItem("access_token", data.login.accessToken);
-      localStorage.setItem("refresh_token", data.login.refreshToken);
-
-      return {
-        success: true,
-        redirectTo: "/",
-      };
+      if (data?.user) {
+        return {
+          success: true,
+          redirectTo: "/",
+        };
+      }
     } catch (error: any) {
       return {
         success: false,
-        error: {
-          message: "message" in error ? error.message : "Login failed",
-          name: "name" in error ? error.name : "Invalid email or password",
-        },
+        error,
       };
     }
+
+    return {
+      success: false,
+      error: {
+        message: "Login failed",
+        name: "Invalid email or password",
+      },
+    };
   },
   register: async ({ email, password }) => {
     try {
-      await dataProvider.custom({
-        url: API_URL,
-        method: "post",
-        headers: {},
-        meta: {
-          variables: { email, password },
-          rawQuery: `
-                mutation register($email: String!, $password: String!) {
-                    register(registerInput: {
-                      email: $email
-                        password: $password
-                    }) {
-                        id
-                        email
-                    }
-                  }
-                `,
-        },
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
       });
 
-      enableAutoLogin(email);
+      if (error) {
+        return {
+          success: false,
+          error,
+        };
+      }
 
-      return {
-        success: true,
-        redirectTo: `/login?email=${email}`,
-      };
+      if (data) {
+        return {
+          success: true,
+          redirectTo: "/",
+        };
+      }
     } catch (error: any) {
       return {
         success: false,
-        error: {
-          message: "message" in error ? error.message : "Register failed",
-          name: "name" in error ? error.name : "Invalid email or password",
-        },
+        error,
       };
     }
+
+    return {
+      success: false,
+      error: {
+        message: "Register failed",
+        name: "Invalid email or password",
+      },
+    };
+  },
+  forgotPassword: async ({ email }) => {
+    try {
+      const { data, error } = await supabaseClient.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: `${window.location.origin}/update-password`,
+        }
+      );
+
+      if (error) {
+        return {
+          success: false,
+          error,
+        };
+      }
+
+      if (data) {
+        return {
+          success: true,
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error,
+      };
+    }
+
+    return {
+      success: false,
+      error: {
+        message: "Forgot password failed",
+        name: "Invalid email",
+      },
+    };
+  },
+  updatePassword: async ({ password }) => {
+    try {
+      const { data, error } = await supabaseClient.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        return {
+          success: false,
+          error,
+        };
+      }
+
+      if (data) {
+        return {
+          success: true,
+          redirectTo: "/",
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error,
+      };
+    }
+    return {
+      success: false,
+      error: {
+        message: "Update password failed",
+        name: "Invalid password",
+      },
+    };
   },
   logout: async () => {
-    client.setHeaders({
-      Authorization: "",
-    });
+    const { error } = await supabaseClient.auth.signOut();
 
-    disableAutoLogin();
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    if (error) {
+      return {
+        success: false,
+        error,
+      };
+    }
 
     return {
       success: true,
@@ -149,78 +180,62 @@ export const authProvider: AuthProvider = {
     };
   },
   onError: async (error) => {
-    if (error?.statusCode === "UNAUTHENTICATED") {
-      return {
-        logout: true,
-      };
-    }
-
+    console.error(error);
     return { error };
   },
   check: async () => {
     try {
-      await dataProvider.custom({
-        url: API_URL,
-        method: "post",
-        headers: {},
-        meta: {
-          rawQuery: `
-                    query Me {
-                        me {
-                          name
-                        }
-                      }
-                `,
-        },
-      });
+      const { data } = await supabaseClient.auth.getSession();
+      const { session } = data;
 
-      return {
-        authenticated: true,
-      };
-    } catch (error) {
+      if (!session) {
+        return {
+          authenticated: false,
+          error: {
+            message: "Check failed",
+            name: "Session not found",
+          },
+          logout: true,
+          redirectTo: "/login",
+        };
+      }
+    } catch (error: any) {
       return {
         authenticated: false,
+        error: error || {
+          message: "Check failed",
+          name: "Not authenticated",
+        },
+        logout: true,
+        redirectTo: "/login",
       };
     }
-  },
-  forgotPassword: async () => {
+
     return {
-      success: true,
-      redirectTo: "/update-password",
+      authenticated: true,
     };
   },
-  updatePassword: async () => {
-    return {
-      success: true,
-      redirectTo: "/login",
-    };
+  getPermissions: async () => {
+    const { data } = await supabaseClient.auth.getUser();
+
+    if (data?.user) {
+      return data.user?.role;
+    }
+
+    return null;
   },
   getIdentity: async () => {
-    try {
-      const { data } = await dataProvider.custom<{ me: User }>({
-        url: API_URL,
-        method: "post",
-        headers: {},
-        meta: {
-          rawQuery: `
-                    query Me {
-                        me {
-                            id,
-                            name,
-                            email,
-                            phone,
-                            jobTitle,
-                            timezone
-                            avatarUrl
-                        }
-                      }
-                `,
-        },
-      });
+    const { data } = await supabaseClient.auth.getUser();
 
-      return data.me;
-    } catch (error) {
-      return undefined;
+    if (data?.user) {
+      return {
+        ...data.user,
+        name: data.user.email,
+      };
     }
+
+    return null;
   },
 };
+
+export default authProvider;

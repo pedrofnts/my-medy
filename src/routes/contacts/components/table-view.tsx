@@ -24,7 +24,7 @@ import { ContactStatusEnum } from "@/enums";
 import type { ContactsListQuery } from "@/graphql/types";
 import { useCompaniesSelect } from "@/hooks/useCompaniesSelect";
 
-type Contact = GetFieldsFromList<ContactsListQuery>;
+type Contact = GetFieldsFromList<ContactsListQuery> & { phone: string };
 
 type Props = {
   tableProps: TableProps<Contact>;
@@ -70,10 +70,24 @@ export const TableView: React.FC<Props> = ({
         render={(_, record: Contact) => {
           return (
             <Space>
-              <CustomAvatar src={record.avatarUrl} name={record.name} />
-              <Text>{record.name}</Text>
+              <CustomAvatar src={record?.avatarUrl} name={record?.name} />
+              <Text>{record?.name}</Text>
             </Space>
           );
+        }}
+      />
+      <Table.Column
+        dataIndex="phone"
+        title="Phone"
+        defaultFilteredValue={getDefaultFilter("phone", filters)}
+        defaultSortOrder={getDefaultSortOrder("phone", sorters)}
+        filterDropdown={(props) => (
+          <FilterDropdown {...props}>
+            <Input placeholder="Search Phone" />
+          </FilterDropdown>
+        )}
+        render={(_, record: Contact) => {
+          return <Text>{record?.phone}</Text>;
         }}
       />
       <Table.Column
@@ -102,17 +116,8 @@ export const TableView: React.FC<Props> = ({
           </FilterDropdown>
         )}
         render={(_, record: Contact) => {
-          return <span>{record?.company.name}</span>;
+          return <span>{record?.company?.name}</span>;
         }}
-      />
-      <Table.Column
-        dataIndex="jobTitle"
-        title="Title"
-        filterDropdown={(props) => (
-          <FilterDropdown {...props}>
-            <Input placeholder="Search Title" />
-          </FilterDropdown>
-        )}
       />
       <Table.Column
         dataIndex="status"
@@ -143,9 +148,8 @@ export const TableView: React.FC<Props> = ({
             <ShowButton hideText size="small" recordItemId={record.id} />
             <Button
               size="small"
-              href="tel:1234567890"
-              // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-              icon={<PhoneOutlined />}
+              href={`tel:${record?.phone ?? "1234567890"}`}
+              icon={<PhoneOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />}
             />
             <DeleteButton hideText size="small" recordItemId={record.id} />
           </Space>

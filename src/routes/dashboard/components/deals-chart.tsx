@@ -1,70 +1,99 @@
-import React, { lazy, Suspense, useMemo } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import { useList, useNavigation } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
+import { useNavigation } from "@refinedev/core";
 
 import { DollarOutlined, RightCircleOutlined } from "@ant-design/icons";
-import type { AreaConfig } from "@ant-design/plots";
-import { Button, Card } from "antd";
+import { Button, Card, Spin } from "antd";
 import dayjs from "dayjs";
 
-import { Text } from "@/components";
-import type { DashboardDealsChartQuery } from "@/graphql/types";
-
-import { DASHBOARD_DEALS_CHART_QUERY } from "./queries";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
 const Area = lazy(() => import("@ant-design/plots/es/components/area"));
 
-export const DashboardDealsChart: React.FC = () => {
-  const { list } = useNavigation();
-  const { data, isError, error } = useList<
-    GetFieldsFromList<DashboardDealsChartQuery>
-  >({
-    resource: "dealStages",
-    filters: [{ field: "title", operator: "in", value: ["WON", "LOST"] }],
-    meta: {
-      gqlQuery: DASHBOARD_DEALS_CHART_QUERY,
-    },
-  });
+type DealItem = {
+  close_date_month: number;
+  close_date_year: number;
+  value: number;
+};
 
-  if (isError) {
-    console.error("Error fetching deals chart data", error);
-    return null;
+type DealStage = {
+  title: string;
+  deals: DealItem[];
+};
+
+const fetchDashboardDealsChartData = async (): Promise<DealStage[]> => {
+  const { data, error } = await supabaseClient
+    .from("deal_stages")
+    .select(`
+      title,
+      deals!deal_stage_id(
+        close_date_month,
+        close_date_year,
+        value
+      )
+    `)
+    .in('title', ['WON', 'LOST']);
+
+  if (error) {
+    throw new Error(error.message);
   }
 
+  return data || [];
+};
+
+export const DashboardDealsChart: React.FC = () => {
+  const { list } = useNavigation();
+  const [data, setData] = useState<DealStage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await fetchDashboardDealsChartData();
+        console.log("Fetched data:", JSON.stringify(result, null, 2));
+        setData(result);
+      } catch (err: any) {
+        setError(err.message);
+        console.error("Error fetching deals chart data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const dealData = useMemo(() => {
-    const won = data?.data
-      .find((node) => node.title === "WON")
-      ?.dealsAggregate.map((item) => {
-        const { closeDateMonth, closeDateYear } = item.groupBy!;
-        const date = dayjs(`${closeDateYear}-${closeDateMonth}-01`);
+    if (!data || !Array.isArray(data)) return [];
+
+    const processDeals = (stageTitle: string, state: string) => {
+      const stageData = data.find((node) => node.title === stageTitle);
+      if (!stageData || !Array.isArray(stageData.deals)) return [];
+
+      return stageData.deals.map((item: DealItem) => {
+        const { close_date_month, close_date_year, value } = item;
+        const date = dayjs(`${close_date_year}-${close_date_month}-01`);
         return {
           timeUnix: date.unix(),
           timeText: date.format("MMM YYYY"),
-          value: item.sum?.value,
-          state: "Won",
+          value: value,
+          state: state,
         };
       });
+    };
 
-    const lost = data?.data
-      .find((node) => node.title === "LOST")
-      ?.dealsAggregate.map((item) => {
-        const { closeDateMonth, closeDateYear } = item.groupBy!;
-        const date = dayjs(`${closeDateYear}-${closeDateMonth}-01`);
-        return {
-          timeUnix: date.unix(),
-          timeText: date.format("MMM YYYY"),
-          value: item.sum?.value,
-          state: "Lost",
-        };
-      });
+    const won = processDeals("WON", "Won");
+    const lost = processDeals("LOST", "Lost");
 
-    return [...(won || []), ...(lost || [])].sort(
-      (a, b) => a.timeUnix - b.timeUnix,
-    );
+    return [...won, ...lost].sort((a, b) => a.timeUnix - b.timeUnix);
   }, [data]);
 
-  const config: AreaConfig = {
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  const config: any = {
     isStack: false,
     data: dealData,
     xField: "timeText",
@@ -79,25 +108,25 @@ export const DashboardDealsChart: React.FC = () => {
     yAxis: {
       tickCount: 4,
       label: {
-        formatter: (v) => {
+        formatter: (v: string) => {
           return `$${Number(v) / 1000}k`;
         },
       },
     },
     tooltip: {
-      formatter: (data) => {
+      formatter: (data: any) => {
         return {
           name: data.state,
           value: `$${Number(data.value) / 1000}k`,
         };
       },
     },
-    areaStyle: (datum) => {
+    areaStyle: (datum: any) => {
       const won = "l(270) 0:#ffffff 0.5:#b7eb8f 1:#52c41a";
       const lost = "l(270) 0:#ffffff 0.5:#f3b7c2 1:#ff4d4f";
       return { fill: datum.state === "Won" ? won : lost };
     },
-    color: (datum) => {
+    color: (datum: any) => {
       return datum.state === "Won" ? "#52C41A" : "#F5222D";
     },
   };
@@ -108,30 +137,24 @@ export const DashboardDealsChart: React.FC = () => {
       headStyle={{ padding: "8px 16px" }}
       bodyStyle={{ padding: "24px 24px 0px 24px" }}
       title={
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          {/* @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66 */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <DollarOutlined />
-          <Text size="sm" style={{ marginLeft: ".5rem" }}>
-            Deals
-          </Text>
+          <span>Deals</span>
         </div>
       }
       extra={
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         <Button onClick={() => list("deals")} icon={<RightCircleOutlined />}>
           See sales pipeline
         </Button>
       }
     >
-      <Suspense>
-        <Area {...config} height={325} />
-      </Suspense>
+      {loading ? (
+        <Spin size="large" />
+      ) : (
+        <Suspense fallback={<Spin size="large" />}>
+          <Area {...config} height={325} />
+        </Suspense>
+      )}
     </Card>
   );
 };

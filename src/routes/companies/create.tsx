@@ -8,43 +8,22 @@ import {
   useGetToPath,
   useGo,
 } from "@refinedev/core";
-import type { GetFields, GetVariables } from "@refinedev/nestjs-query";
 
-import {
-  DeleteOutlined,
-  LeftOutlined,
-  MailOutlined,
-  PlusCircleOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import {
-  Button,
-  Col,
-  Form,
-  Input,
-  Modal,
-  Row,
-  Select,
-  Space,
-  Typography,
-} from "antd";
+import { DeleteOutlined, LeftOutlined, MailOutlined, PlusCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Col, Form, Input, Modal, Row, Select, Space, Typography } from "antd";
 
 import { SelectOptionWithAvatar } from "@/components";
-import type {
-  CreateCompanyMutation,
-  CreateCompanyMutationVariables,
-} from "@/graphql/types";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 
-import { COMPANY_CREATE_MUTATION } from "./queries";
-
-type Company = GetFields<CreateCompanyMutation>;
+import { createCompany } from "./queries";
 
 type Props = {
   isOverModal?: boolean;
 };
 
-type FormValues = GetVariables<CreateCompanyMutationVariables> & {
+type FormValues = {
+  name: string;
+  salesOwnerId: number;
   contacts?: {
     name?: string;
     email?: string;
@@ -57,20 +36,13 @@ export const CompanyCreatePage = ({ isOverModal }: Props) => {
   const { pathname } = useLocation();
   const go = useGo();
 
-  const { formProps, modalProps, close, onFinish } = useModalForm<
-    Company,
-    HttpError,
-    FormValues
-  >({
+  const { formProps, modalProps, close, onFinish } = useModalForm<any, HttpError, FormValues>({
     action: "create",
     defaultVisible: true,
     resource: "companies",
     redirect: false,
     warnWhenUnsavedChanges: !isOverModal,
     mutationMode: "pessimistic",
-    meta: {
-      gqlMutation: COMPANY_CREATE_MUTATION,
-    },
   });
 
   const { selectProps, queryResult } = useUsersSelect();
@@ -109,12 +81,7 @@ export const CompanyCreatePage = ({ isOverModal }: Props) => {
         layout="vertical"
         onFinish={async (values) => {
           try {
-            const data = await onFinish({
-              name: values.name,
-              salesOwnerId: values.salesOwnerId,
-            });
-
-            const createdCompany = (data as CreateResponse<Company>)?.data;
+            const createdCompany = await createCompany(values.name, values.salesOwnerId);
 
             if ((values.contacts ?? [])?.length > 0) {
               await createManyMutateAsync({
@@ -122,8 +89,8 @@ export const CompanyCreatePage = ({ isOverModal }: Props) => {
                 values:
                   values.contacts?.map((contact) => ({
                     ...contact,
-                    companyId: createdCompany.id,
-                    salesOwnerId: createdCompany.salesOwner.id,
+                    company_id: createdCompany.id,
+                    sales_owner_id: createdCompany.salesOwnerId,
                   })) ?? [],
                 successNotification: false,
               });
@@ -145,30 +112,17 @@ export const CompanyCreatePage = ({ isOverModal }: Props) => {
           }
         }}
       >
-        <Form.Item
-          label="Company name"
-          name="name"
-          rules={[{ required: true }]}
-        >
+        <Form.Item label="Company name" name="name" rules={[{ required: true }]}>
           <Input placeholder="Please enter company name" />
         </Form.Item>
-        <Form.Item
-          label="Sales owner"
-          name="salesOwnerId"
-          rules={[{ required: true }]}
-        >
+        <Form.Item label="Sales owner" name="salesOwnerId" rules={[{ required: true }]}>
           <Select
-            placeholder="Please sales owner user"
+            placeholder="Please select a sales owner"
             {...selectProps}
             options={
-              queryResult.data?.data?.map((user) => ({
+              queryResult.data?.map((user) => ({
                 value: user.id,
-                label: (
-                  <SelectOptionWithAvatar
-                    name={user.name}
-                    avatarUrl={user.avatarUrl ?? undefined}
-                  />
-                ),
+                label: <SelectOptionWithAvatar name={user.name} avatarUrl={user.avatar_url ?? undefined} />,
               })) ?? []
             }
           />
@@ -188,7 +142,7 @@ export const CompanyCreatePage = ({ isOverModal }: Props) => {
                     </Form.Item>
                   </Col>
                   <Col span={11}>
-                    <Form.Item noStyle name={[name, "email"]}>
+                    <Form.Item noStyle {...restField} name={[name, "email"]}>
                       <Input
                         // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
                         addonBefore={<MailOutlined />}

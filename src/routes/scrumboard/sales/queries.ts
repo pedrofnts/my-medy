@@ -1,135 +1,237 @@
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-export const SALES_COMPANIES_SELECT_QUERY = gql`
-    query SalesCompaniesSelect(
-        $filter: CompanyFilter!
-        $sorting: [CompanySort!]
-        $paging: OffsetPaging!
-    ) {
-        companies(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                name
-                avatarUrl
-                contacts {
-                    nodes {
-                        name
-                        id
-                        avatarUrl
-                    }
-                }
-            }
-        }
-    }
-`;
+export const fetchSalesCompanies = async (
+  filter: any,
+  sorting: any,
+  paging: any
+) => {
+  const { data, error } = await supabaseClient
+    .from("companies")
+    .select(
+      `
+      id,
+      name,
+      avatar_url,
+      contacts:contacts (
+        id,
+        name,
+        avatar_url
+      )
+    `
+    )
+    .match(filter)
+    .order(sorting.field, { ascending: sorting.order === "asc" })
+    .range(paging.offset, paging.limit);
 
-export const SALES_CREATE_DEAL_STAGE_MUTATION = gql`
-    mutation SalesCreateDealStage($input: CreateOneDealStageInput!) {
-        createOneDealStage(input: $input) {
-            id
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
 
-export const SALES_CREATE_CONTACT_MUTATION = gql`
-    mutation SalesCreateContact($input: CreateOneContactInput!) {
-        createOneContact(input: $input) {
-            id
-        }
-    }
-`;
+  return data;
+};
 
-export const SALES_UPDATE_DEAL_STAGE_MUTATION = gql`
-    mutation SalesUpdateDealStage($input: UpdateOneDealStageInput!) {
-        updateOneDealStage(input: $input) {
-            id
-            title
-        }
-    }
-`;
+export const createDealStage = async (input: any) => {
+  const { data, error } = await supabaseClient
+    .from("deal_stages")
+    .insert(input)
+    .single();
 
-export const SALES_UPDATE_DEAL_MUTATION = gql`
-    mutation SalesUpdateDeal($input: UpdateOneDealInput!) {
-        updateOneDeal(input: $input) {
-            id
-            title
-            stageId
-            value
-            dealOwnerId
-            company {
-                id
-                contacts {
-                    nodes {
-                        id
-                        name
-                        avatarUrl
-                    }
-                }
-            }
-            dealContact {
-                id
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
 
-export const SALES_FINALIZE_DEAL_MUTATION = gql`
-    mutation SalesFinalizeDeal($input: UpdateOneDealInput!) {
-        updateOneDeal(input: $input) {
-            id
-            notes
-            closeDateYear
-            closeDateMonth
-            closeDateDay
-        }
-    }
-`;
+  return data;
+};
 
-export const SALES_DEAL_STAGES_QUERY = gql`
-    query SalesDealStages(
-        $filter: DealStageFilter!
-        $sorting: [DealStageSort!]
-        $paging: OffsetPaging
-    ) {
-        dealStages(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                title
-                dealsAggregate {
-                    sum {
-                        value
-                    }
-                }
-            }
-            totalCount
-        }
-    }
-`;
+export const createContact = async (input: any) => {
+  const { data, error } = await supabaseClient
+    .from("contacts")
+    .insert(input)
+    .single();
 
-export const SALES_DEALS_QUERY = gql`
-    query SalesDeals(
-        $filter: DealFilter!
-        $sorting: [DealSort!]
-        $paging: OffsetPaging!
-    ) {
-        deals(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                title
-                value
-                createdAt
-                stageId
-                company {
-                    id
-                    name
-                    avatarUrl
-                }
-                dealOwner {
-                    id
-                    name
-                    avatarUrl
-                }
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const updateDealStage = async (input: any) => {
+  const { data, error } = await supabaseClient
+    .from("deal_stages")
+    .update({ title: input.title })
+    .eq("id", input.id)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchUpdateDeal = async (id: string, values: any) => {
+  const { data, error } = await supabaseClient
+    .from("deals")
+    .update(values)
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const updateDeal = async (input: any) => {
+  const { data, error } = await supabaseClient
+    .from("deals")
+    .update(input)
+    .eq("id", input.id)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const finalizeDeal = async (input: any) => {
+  const { data, error } = await supabaseClient
+    .from("deals")
+    .update({
+      notes: input.notes,
+      close_date_year: input.closeDateYear,
+      close_date_month: input.closeDateMonth,
+      close_date_day: input.closeDateDay,
+    })
+    .eq("id", input.id)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchSalesDealStages = async (
+  filter: any,
+  sorting: any,
+  paging: any
+) => {
+  const { data, error } = await supabaseClient
+    .from("deal_stages")
+    .select(
+      `
+          id,
+          title,
+          dealsAggregate: deals (sum(value))
+      `
+    )
+    .match(filter)
+    .order(sorting.field, { ascending: sorting.order === "asc" })
+    .range(paging.offset, paging.limit);
+
+  if (error) {
+    console.error("Supabase error:", error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchSalesDeals = async (
+  filter: any,
+  sorting: any,
+  paging: any
+) => {
+  const { data, error } = await supabaseClient
+    .from("deals")
+    .select(
+      `
+      id,
+      title,
+      value,
+      created_at,
+      stage_id,
+      company:companies (
+        id,
+        name,
+        avatar_url
+      ),
+      deal_owner:users (
+        id,
+        name,
+        avatar_url
+      )
+    `
+    )
+    .match(filter)
+    .order(sorting.field, { ascending: sorting.order === "asc" })
+    .range(paging.offset, paging.limit);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchCompanies = async () => {
+  const { data, error } = await supabaseClient.from("companies").select(`
+      id,
+      name,
+      avatar_url,
+      contacts (
+        id,
+        name,
+        avatar_url
+      )
+    `);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const fetchDeals = async ({ filters, sorters }) => {
+  let query = supabaseClient.from("deals").select(`
+      id,
+      title,
+      value,
+      created_at,
+      deal_stage_id,
+      company: companies (id, name, avatar_url),
+      deal_owner: users (id, name, avatar_url)
+  `);
+
+  if (filters) {
+    filters.forEach((filter) => {
+      if (filter.field === "created_at") {
+        const dateValue = new Date(filter.value).toISOString();
+        query = query[filter.operator](filter.field, dateValue);
+      } else {
+        query = query.eq(filter.field, filter.value);
+      }
+    });
+  }
+
+  if (sorters) {
+    sorters.forEach((sorter) => {
+      query = query.order(sorter.field, { ascending: sorter.order === "asc" });
+    });
+  }
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Supabase error:", error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};

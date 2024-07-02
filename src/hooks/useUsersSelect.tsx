@@ -1,32 +1,25 @@
 import { useSelect } from "@refinedev/antd";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-import type { UsersSelectQuery } from "@/graphql/types";
+const fetchUsers = async () => {
+  const { data, error } = await supabaseClient.from("users").select(`
+    id,
+    name,
+    avatar_url
+  `);
 
-const USERS_SELECT_QUERY = gql`
-    query UsersSelect(
-        $filter: UserFilter!
-        $sorting: [UserSort!]
-        $paging: OffsetPaging!
-    ) {
-        users(filter: $filter, sorting: $sorting, paging: $paging) {
-            nodes {
-                id
-                name
-                avatarUrl
-            }
-        }
-    }
-`;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
 
 export const useUsersSelect = () => {
-  return useSelect<GetFieldsFromList<UsersSelectQuery>>({
+  return useSelect({
     resource: "users",
     optionLabel: "name",
-    meta: {
-      gqlQuery: USERS_SELECT_QUERY,
-    },
+    queryFn: fetchUsers,
   });
 };

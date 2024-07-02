@@ -9,43 +9,37 @@ import { Col, Form, Input, InputNumber, Modal, Row, Select } from "antd";
 
 import { SelectOptionWithAvatar } from "@/components";
 import type { DealUpdateInput } from "@/graphql/schema.types";
-import type {
-  SalesCompaniesSelectQuery,
-  SalesUpdateDealMutation,
-} from "@/graphql/types";
 import { useContactsSelect } from "@/hooks/useContactsSelect";
 import { useDealStagesSelect } from "@/hooks/useDealStagesSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 
 import {
-  SALES_COMPANIES_SELECT_QUERY,
-  SALES_UPDATE_DEAL_MUTATION,
+  fetchSalesCompanies,
+  fetchSalesDeals,
+  fetchSalesDealStages,
+  fetchUpdateDeal,
 } from "./queries";
 
 export const SalesEditPage = () => {
   const { list } = useNavigation();
 
   const { formProps, modalProps, close, queryResult } = useModalForm<
-    GetFields<SalesUpdateDealMutation>,
+    GetFields<typeof fetchUpdateDeal>,
     HttpError,
     DealUpdateInput
   >({
     action: "edit",
     defaultVisible: true,
-    meta: {
-      gqlMutation: SALES_UPDATE_DEAL_MUTATION,
-    },
+    queryFn: fetchUpdateDeal,
   });
 
   const {
     selectProps: companySelectProps,
     queryResult: companySelectQueryResult,
-  } = useSelect<GetFieldsFromList<SalesCompaniesSelectQuery>>({
+  } = useSelect<GetFieldsFromList<typeof fetchSalesCompanies>>({
     resource: "companies",
     optionLabel: "name",
-    meta: {
-      gqlQuery: SALES_COMPANIES_SELECT_QUERY,
-    },
+    queryFn: fetchSalesCompanies,
   });
 
   const { selectProps: stageSelectProps } = useDealStagesSelect();
@@ -55,11 +49,11 @@ export const SalesEditPage = () => {
 
   const deal = queryResult?.data?.data;
 
-  const companyIdField = Form.useWatch("companyId", formProps.form);
+  const companyIdField = Form.useWatch("company_id", formProps.form);
 
   useEffect(() => {
     if (deal?.company?.id !== companyIdField) {
-      formProps.form?.setFieldValue(["dealContactId"], undefined);
+      formProps.form?.setFieldValue(["deal_contact_id"], undefined);
     }
   }, [companyIdField]);
 
@@ -82,15 +76,15 @@ export const SalesEditPage = () => {
     }
 
     const hasContact =
-      deal?.company?.contacts?.nodes?.length !== undefined &&
-      deal?.company.contacts.nodes.length > 0;
+      deal?.company?.contacts?.length !== undefined &&
+      deal?.company.contacts.length > 0;
 
     if (hasContact) {
-      const options = contactsSelectQueryResult?.data?.data?.map((contact) => ({
+      const options = contactsSelectQueryResult?.data?.map((contact) => ({
         label: (
           <SelectOptionWithAvatar
             name={contact.name}
-            avatarUrl={contact.avatarUrl ?? undefined}
+            avatarUrl={contact.avatar_url ?? undefined}
           />
         ),
         value: contact.id,
@@ -99,11 +93,11 @@ export const SalesEditPage = () => {
       return (
         <Form.Item
           label="Deal contact"
-          name={["dealContactId"]}
+          name={["deal_contact_id"]}
           trigger=""
           rules={[{ required: true }]}
-          initialValue={deal?.dealContact?.id}
-          dependencies={["companyId"]}
+          initialValue={deal?.deal_contact?.id}
+          dependencies={["company_id"]}
           preserve={false}
         >
           <Select {...contactSelectProps} options={options} />
@@ -131,21 +125,21 @@ export const SalesEditPage = () => {
         <Form.Item
           label="Company"
           initialValue={deal?.company?.id}
-          name={["companyId"]}
+          name={["company_id"]}
           rules={[{ required: true }]}
-          dependencies={["dealContactId"]}
+          dependencies={["deal_contact_id"]}
         >
           <Select
             placeholder="Please select company"
             {...companySelectProps}
             options={
-              companySelectQueryResult.data?.data?.map((company) => ({
+              companySelectQueryResult.data?.map((company) => ({
                 value: company.id,
                 label: (
                   <SelectOptionWithAvatar
                     name={company.name}
                     shape="square"
-                    avatarUrl={company.avatarUrl ?? undefined}
+                    avatarUrl={company.avatar_url ?? undefined}
                   />
                 ),
               })) ?? []
@@ -155,7 +149,7 @@ export const SalesEditPage = () => {
         {renderContactForm()}
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="Stage" name="stageId">
+            <Form.Item label="Stage" name="deal_stage_id">
               <Select
                 placeholder="Please select stage"
                 {...stageSelectProps}
@@ -171,7 +165,6 @@ export const SalesEditPage = () => {
             <Form.Item label="Deal value" name="value">
               <InputNumber
                 min={0}
-                // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
                 addonBefore={<DollarOutlined />}
                 placeholder="0,00"
                 formatter={(value) =>
@@ -183,19 +176,19 @@ export const SalesEditPage = () => {
         </Row>
         <Form.Item
           label="Deal owner"
-          name="dealOwnerId"
+          name="deal_owner_id"
           rules={[{ required: true }]}
         >
           <Select
             placeholder="Please select user"
             {...userSelectProps}
             options={
-              userSelectQueryResult.data?.data?.map((user) => ({
+              userSelectQueryResult.data?.map((user) => ({
                 value: user.id,
                 label: (
                   <SelectOptionWithAvatar
                     name={user.name}
-                    avatarUrl={user.avatarUrl ?? undefined}
+                    avatarUrl={user.avatar_url ?? undefined}
                   />
                 ),
               })) ?? []

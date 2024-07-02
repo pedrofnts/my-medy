@@ -7,14 +7,12 @@ import {
   useUpdate,
   useUpdateMany,
 } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
 import { ClearOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import type { DragEndEvent } from "@dnd-kit/core";
 import type { MenuProps } from "antd";
 
 import { Text } from "@/components";
-import type { SalesDealsQuery, SalesDealStagesQuery } from "@/graphql/types";
 import { currencyNumber } from "@/utilities";
 
 import {
@@ -29,13 +27,26 @@ import {
   KanbanColumnSkeleton,
   KanbanItem,
 } from "../components";
-import { SALES_DEAL_STAGES_QUERY, SALES_DEALS_QUERY } from "./queries";
+import { fetchDeals, fetchSalesDealStages } from "./queries";
 
 const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1));
 
-type DealStage = GetFieldsFromList<SalesDealStagesQuery>;
+type DealStage = {
+  id: string;
+  title: string;
+  createdAt: string;
+  dealsAggregate?: { sum?: { value: number } }[];
+};
 
-type Deal = GetFieldsFromList<SalesDealsQuery>;
+type Deal = {
+  id: string;
+  title: string;
+  value: number;
+  createdAt: string;
+  deal_stage_id: string | null;
+  company: { id: string; name: string; avatarUrl: string };
+  dealOwner: { id: string; name: string; avatarUrl: string };
+};
 
 type DealStageColumn = DealStage & {
   deals: Deal[];
@@ -55,14 +66,11 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
         order: "asc",
       },
     ],
-    meta: {
-      gqlQuery: SALES_DEAL_STAGES_QUERY,
-    },
+    queryFn: fetchSalesDealStages,
   });
 
   const { data: deals, isLoading: isLoadingDeals } = useList<Deal>({
     resource: "deals",
-
     sorters: [
       {
         field: "createdAt",
@@ -82,14 +90,9 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
     pagination: {
       mode: "off",
     },
-    meta: {
-      gqlQuery: SALES_DEALS_QUERY,
-    },
+    queryFn: fetchDeals,
   });
 
-  // its convert Deal[] to DealStage[] (group by stage) for kanban
-  // its also group `won` and `lost` stages
-  // uses `stages` and `tasks` from useList hooks
   const stageGrouped = useMemo(() => {
     if (!stages?.data || !deals?.data)
       return {
@@ -101,12 +104,12 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
     const stagesData = stages?.data;
     const dealsData = deals?.data;
 
-    const stageUnassigned = dealsData.filter((deal) => deal.stageId === null);
+    const stageUnassigned = dealsData.filter((deal) => deal.deal_stage_id === null);
     const grouped = stagesData.map((stage) => {
       return {
         ...stage,
         deals: dealsData
-          .filter((deal) => deal.stageId === stage.id)
+          .filter((deal) => deal.deal_stage_id === stage.id)
           .sort((a, b) => {
             return (
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -117,7 +120,6 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
 
     const stageWon = grouped.find((stage) => stage.title === "WON");
     const stageLost = grouped.find((stage) => stage.title === "LOST");
-    // remove won and lost from grouped
     const stageAll = grouped.filter(
       (stage) => stage.title !== "WON" && stage.title !== "LOST",
     );
@@ -149,7 +151,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
   const handleOnDragEnd = (event: DragEndEvent) => {
     let stageId = event.over?.id as undefined | string | null;
     const dealId = event.active.id;
-    const dealStageId = event.active.data.current?.stageId;
+    const dealStageId = event.active.data.current?.deal_stage_id;
 
     if (dealStageId === stageId) {
       return;
@@ -172,7 +174,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
         resource: "deals",
         id: dealId,
         values: {
-          stageId: stageId,
+          deal_stage_id: stageId,
         },
         successNotification: false,
         mutationMode: "optimistic",
@@ -198,7 +200,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
 
   const handleDeleteStage = (args: { stageId: string }) => {
     deleteStage({
-      resource: "dealStage",
+      resource: "dealStages",
       id: args.stageId,
       successNotification: () => ({
         key: "delete-stage",
@@ -222,7 +224,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
       resource: "deals",
       ids: args.dealsIds,
       values: {
-        stageId: null,
+        deal_stage_id: null,
       },
       successNotification: false,
     });
@@ -235,14 +237,12 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
       {
         label: "Edit status",
         key: "1",
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon: <EditOutlined />,
         onClick: () => handleEditStage({ stageId: column.id }),
       },
       {
         label: "Clear all cards",
         key: "2",
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon: <ClearOutlined />,
         disabled: !hasItems,
         onClick: () =>
@@ -254,7 +254,6 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
         danger: true,
         label: "Delete status",
         key: "3",
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
         icon: <DeleteOutlined />,
         disabled: hasItems,
         onClick: () => handleDeleteStage({ stageId: column.id }),
@@ -289,7 +288,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
               <KanbanItem
                 key={deal.id}
                 id={deal.id}
-                data={{ ...deal, stageId: "unassigned" }}
+                data={{ ...deal, deal_stage_id: "unassigned" }}
               >
                 <DealKanbanCardMemo
                   id={deal.id}
@@ -335,7 +334,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
                   <KanbanItem
                     key={deal.id}
                     id={deal.id}
-                    data={{ ...deal, stageId: column.id }}
+                    data={{ ...deal, deal_stage_id: column.id }}
                   >
                     <DealKanbanCardMemo
                       id={deal.id}
@@ -391,7 +390,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
                   id={deal.id}
                   data={{
                     ...deal,
-                    stageId: stageGrouped.stageWon?.id,
+                    deal_stage_id: stageGrouped.stageWon?.id,
                   }}
                 >
                   <DealKanbanCardMemo
@@ -442,7 +441,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
                   id={deal.id}
                   data={{
                     ...deal,
-                    stageId: stageGrouped.stageLost?.id,
+                    deal_stage_id: stageGrouped.stageLost?.id,
                   }}
                 >
                   <DealKanbanCardMemo

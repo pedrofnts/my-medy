@@ -8,7 +8,7 @@ import { Title } from "@/components";
 
 export const RegisterPage: React.FC = () => {
   return (
-    <AuthPage
+    (<AuthPage
       type="register"
       title={<Title collapsed={false} />}
       providers={[
@@ -17,12 +17,12 @@ export const RegisterPage: React.FC = () => {
           label: "Sign in with Google",
           icon: (
             // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-            <GoogleOutlined
+            (<GoogleOutlined
               style={{
                 fontSize: 24,
                 lineHeight: 0,
               }}
-            />
+            />)
           ),
         },
         {
@@ -30,15 +30,15 @@ export const RegisterPage: React.FC = () => {
           label: "Sign in with GitHub",
           icon: (
             // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-            <GithubOutlined
+            (<GithubOutlined
               style={{
                 fontSize: 24,
                 lineHeight: 0,
               }}
-            />
+            />)
           ),
         },
       ]}
-    />
+    />)
   );
 };

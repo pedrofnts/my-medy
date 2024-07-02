@@ -1,27 +1,39 @@
-import gql from "graphql-tag";
+import { supabaseClient } from "@/providers/data/supabaseClient";
 
-export const CONTACT_SHOW_QUERY = gql`
-    query ContactShow($id: ID!) {
-        contact(id: $id) {
-            id
-            name
-            email
-            company {
-                id
-                name
-                avatarUrl
-            }
-            status
-            jobTitle
-            phone
-            timezone
-            avatarUrl
-            salesOwner {
-                id
-                name
-                avatarUrl
-            }
-            createdAt
-        }
-    }
-`;
+export const fetchContact = async (id: number) => {
+  const { data, error } = await supabaseClient
+    .from("contacts")
+    .select(
+      `
+            id,
+            name,
+            email,
+            company_id,
+            job_title,
+            status,
+            phone,
+            timezone,
+            avatar_url,
+            sales_owner_id,
+            created_at,
+            companies (
+                id,
+                name,
+                avatar_url
+            ),
+            sales_owners (
+                id,
+                name,
+                avatar_url
+            )
+        `
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};

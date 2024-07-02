@@ -6,30 +6,49 @@ import {
   type CrudSorting,
   getDefaultFilter,
 } from "@refinedev/core";
-import type { GetFieldsFromList } from "@refinedev/nestjs-query";
 
 import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
 import { Input, Select, Space, Table, type TableProps } from "antd";
 
 import { CustomAvatar, PaginationTotal, Text } from "@/components";
-import type { CompaniesTableQuery } from "@/graphql/types";
 import { useContactsSelect } from "@/hooks/useContactsSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 import { currencyNumber } from "@/utilities";
 
 import { AvatarGroup } from "./avatar-group";
 
-type Company = GetFieldsFromList<CompaniesTableQuery>;
+type Company = {
+  id: string;
+  name: string;
+  avatar_url: string;
+  sales_owner_id: string;
+  sales_owner: {
+    id: string;
+    name: string;
+    avatar_url: string;
+  };
+  dealsAggregate: {
+    sum: {
+      value: number;
+    };
+  }[];
+  contacts: {
+    nodes: {
+      id: string;
+      name: string;
+      avatar_url: string;
+    }[];
+  };
+};
 
 type Props = {
-  tableProps: TableProps<GetFieldsFromList<CompaniesTableQuery>>;
+  tableProps: TableProps<Company>;
   filters: CrudFilters;
   sorters: CrudSorting;
 };
 
 export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
   const { selectProps: selectPropsUsers } = useUsersSelect();
-
   const { selectProps: selectPropsContacts } = useContactsSelect();
 
   return (
@@ -48,8 +67,7 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
         dataIndex="name"
         title="Company title"
         defaultFilteredValue={getDefaultFilter("id", filters)}
-        // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-        filterIcon={<SearchOutlined />}
+        filterIcon={<SearchOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />}
         filterDropdown={(props) => (
           <FilterDropdown {...props}>
             <Input placeholder="Search Company" />
@@ -61,7 +79,7 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
               <CustomAvatar
                 shape="square"
                 name={record.name}
-                src={record.avatarUrl}
+                src={record.avatar_url}
               />
               <Text
                 style={{
@@ -75,9 +93,9 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
         }}
       />
       <Table.Column<Company>
-        dataIndex={["salesOwner", "id"]}
+        dataIndex={["sales_owner", "id"]}
         title="Sales Owner"
-        defaultFilteredValue={getDefaultFilter("salesOwner.id", filters)}
+        defaultFilteredValue={getDefaultFilter("sales_owner.id", filters)}
         filterDropdown={(props) => (
           <FilterDropdown {...props}>
             <Select
@@ -88,10 +106,10 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
           </FilterDropdown>
         )}
         render={(_, record) => {
-          const salesOwner = record.salesOwner;
+          const salesOwner = record.sales_owner;
           return (
             <Space>
-              <CustomAvatar name={salesOwner.name} src={salesOwner.avatarUrl} />
+              <CustomAvatar name={salesOwner.name} src={salesOwner.avatar_url} />
               <Text
                 style={{
                   whiteSpace: "nowrap",
@@ -133,7 +151,7 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
           const avatars = value?.nodes?.map((contact) => {
             return {
               name: contact.name,
-              src: contact.avatarUrl as string | undefined,
+              src: contact.avatar_url as string | undefined,
             };
           });
 
@@ -147,8 +165,7 @@ export const CompaniesTableView: FC<Props> = ({ tableProps, filters }) => {
         render={(value) => (
           <Space>
             <EditButton
-              // @ts-expect-error Ant Design Icon's v5.0.1 has an issue with @types/react@^18.2.66
-              icon={<EyeOutlined />}
+              icon={<EyeOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />}
               hideText
               size="small"
               recordItemId={value}

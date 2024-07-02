@@ -1,9 +1,9 @@
 import { useModalForm } from "@refinedev/antd";
-import { useInvalidate, useNavigation } from "@refinedev/core";
+import { useCreate,useInvalidate, useNavigation } from "@refinedev/core";
 
 import { Form, Input, Modal } from "antd";
 
-import { SALES_CREATE_DEAL_STAGE_MUTATION } from "./queries";
+import { createDealStage } from "./queries";
 
 export const SalesCreateStage = () => {
   const invalidate = useInvalidate();
@@ -12,9 +12,6 @@ export const SalesCreateStage = () => {
     action: "create",
     defaultVisible: true,
     resource: "dealStages",
-    meta: {
-      gqlMutation: SALES_CREATE_DEAL_STAGE_MUTATION,
-    },
     onMutationSuccess: () => {
       invalidate({ invalidates: ["list"], resource: "deals" });
     },
@@ -28,6 +25,8 @@ export const SalesCreateStage = () => {
     },
   });
 
+  const { mutateAsync: createMutateAsync } = useCreate();
+
   return (
     <Modal
       {...modalProps}
@@ -38,7 +37,19 @@ export const SalesCreateStage = () => {
       title="Add new stage"
       width={512}
     >
-      <Form {...formProps} layout="vertical">
+      <Form
+        {...formProps}
+        layout="vertical"
+        onFinish={async (values) => {
+          await createMutateAsync({
+            resource: "dealStages",
+            values,
+            queryFn: createDealStage,
+          });
+
+          formProps.onFinish?.(values);
+        }}
+      >
         <Form.Item label="Title" name="title" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
