@@ -201,13 +201,13 @@ export const fetchCompanies = async () => {
 
 export const fetchDeals = async ({ filters, sorters }) => {
   let query = supabaseClient.from("deals").select(`
-      id,
-      title,
-      value,
-      created_at,
-      deal_stage_id,
-      company: companies (id, name, avatar_url),
-      deal_owner: users (id, name, avatar_url)
+    id,
+    title,
+    value,
+    created_at,
+    stage_id,
+    company:companies (id, name, avatar_url),
+    deal_owner:users (id, name, avatar_url)
   `);
 
   if (filters) {
@@ -226,12 +226,40 @@ export const fetchDeals = async ({ filters, sorters }) => {
       query = query.order(sorter.field, { ascending: sorter.order === "asc" });
     });
   }
-  const { data, error } = await query;
 
-  if (error) {
-    console.error("Supabase error:", error);
-    throw new Error(error.message);
+  try {
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Supabase error:", error);
+      throw new Error(`Failed to fetch deals: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      console.warn("No deals found or empty response");
+      return [];
+    }
+
+    console.log("Deals data:", JSON.stringify(data, null, 2));
+
+    // Ensure company and deal_owner are properly structured
+    const processedData = data.map((deal) => ({
+      ...deal,
+      company: deal.company || {
+        id: null,
+        name: "Unknown Company",
+        avatar_url: null,
+      },
+      deal_owner: deal.deal_owner || {
+        id: null,
+        name: "Unknown Owner",
+        avatar_url: null,
+      },
+    }));
+
+    return processedData;
+  } catch (error) {
+    console.error("Error in fetchDeals:", error);
+    throw error;
   }
-
-  return data;
 };

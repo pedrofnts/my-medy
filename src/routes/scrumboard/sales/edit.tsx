@@ -15,9 +15,7 @@ import { useUsersSelect } from "@/hooks/useUsersSelect";
 
 import {
   fetchSalesCompanies,
-  fetchSalesDeals,
-  fetchSalesDealStages,
-  fetchUpdateDeal,
+    fetchUpdateDeal,
 } from "./queries";
 
 export const SalesEditPage = () => {

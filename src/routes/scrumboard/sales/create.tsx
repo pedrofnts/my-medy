@@ -9,16 +9,17 @@ import { Col, Form, Input, InputNumber, Modal, Row, Select, Typography } from "a
 
 import { SelectOptionWithAvatar } from "@/components";
 import type { Contact, Deal, User } from "@/graphql/schema.types";
+import { useCompaniesSelect } from "@/hooks/useCompaniesSelect";
 import { useDealStagesSelect } from "@/hooks/useDealStagesSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 
-import { createContact, fetchCompanies } from "./queries";
+import { createContact } from "./queries";
 
 type FormValues = {
-  stage_id?: string | null;
-  company_id?: string;
-  deal_contact_id?: string;
-  deal_owner_id?: string;
+  stage_id?: number | null;
+  company_id?: number;
+  deal_contact_id?: number;
+  deal_owner_id?: string; // UUID
   title?: string;
   contact_name?: string;
   contact_email?: string;
@@ -35,28 +36,23 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
   });
 
   useEffect(() => {
-    const stage_id = searchParams.get("stage_id");
-    const company_id = searchParams.get("company_id");
+    const stage_id = searchParams.get("stageId");
+    const company_id = searchParams.get("companyId");
 
     if (stage_id) {
       formProps.form?.setFieldsValue({
-        stage_id,
+        stage_id: parseInt(stage_id, 10),
       });
     }
 
     if (company_id && company_id !== "null") {
       formProps.form?.setFieldsValue({
-        company_id,
+        company_id: parseInt(company_id, 10),
       });
     }
   }, [searchParams]);
 
-  const { selectProps: companySelectProps, queryResult: companyQueryResult } = useSelect({
-    resource: "companies",
-    optionLabel: "name",
-    queryFn: fetchCompanies,
-  });
-
+  const { selectProps: companySelectProps, queryResult: companyQueryResult } = useCompaniesSelect();
   const { selectProps: stageSelectProps } = useDealStagesSelect();
   const { selectProps: userSelectProps, queryResult: userQueryResult } = useUsersSelect();
   const { data: user } = useGetIdentity<User>();
@@ -73,12 +69,13 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
       return null;
     }
 
-    const selectedCompany = companyQueryResult.data?.find((company) => company.id === company_id);
+    const selectedCompany = companyQueryResult.data?.data?.find((company: any) => company.id === company_id);
+    console.log("Selected Company: ", selectedCompany);
 
     const hasContact = selectedCompany?.contacts?.length > 0;
 
     if (hasContact) {
-      const options = selectedCompany.contacts.map((contact) => ({
+      const options = selectedCompany.contacts.map((contact: any) => ({
         label: <SelectOptionWithAvatar name={contact.name} avatarUrl={contact.avatar_url ?? undefined} />,
         value: contact.id,
       }));
@@ -108,6 +105,9 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
 
   const isHaveOverModal = pathname === "/scrumboard/sales/create/company/create";
 
+  console.log("Company Query Result: ", companyQueryResult);
+  console.log("User Query Result: ", userQueryResult);
+
   return (
     <>
       <Modal
@@ -131,7 +131,7 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
                   name: values.contact_name,
                   email: values.contact_email,
                   sales_owner_id: user?.id,
-                  company_id,
+                  company_id: values.company_id,
                 },
                 queryFn: createContact,
               });
@@ -171,16 +171,18 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
               placeholder="Please select company"
               {...companySelectProps}
               options={
-                Array.isArray(companyQueryResult.data) ? companyQueryResult.data.map((company) => ({
-                  value: company.id,
-                  label: (
-                    <SelectOptionWithAvatar
-                      name={company.name}
-                      shape="square"
-                      avatarUrl={company.avatar_url ?? undefined}
-                    />
-                  ),
-                })) : []
+                Array.isArray(companyQueryResult?.data?.data)
+                  ? companyQueryResult.data.data.map((company: any) => ({
+                      value: company.id,
+                      label: (
+                        <SelectOptionWithAvatar
+                          name={company.name}
+                          shape="square"
+                          avatarUrl={company.avatar_url ?? undefined}
+                        />
+                      ),
+                    }))
+                  : []
               }
             />
           </Form.Item>
@@ -192,10 +194,13 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
                   placeholder="Please select stage"
                   {...stageSelectProps}
                   showSearch={false}
-                  options={Array.isArray(stageSelectProps?.options) ? stageSelectProps.options.concat({
-                    label: "UNASSIGNED",
-                    value: null,
-                  }) : []}
+                  options={Array.isArray(stageSelectProps?.options)
+                    ? stageSelectProps.options.concat({
+                        label: "UNASSIGNED",
+                        value: "unassigned",
+                      })
+                    : []
+                }
                 />
               </Form.Item>
             </Col>
@@ -215,12 +220,14 @@ export const SalesCreatePage: FC<PropsWithChildren> = ({ children }) => {
               placeholder="Please select user"
               {...userSelectProps}
               options={
-                Array.isArray(userQueryResult.data) ? userQueryResult.data.map((user) => ({
-                  value: user.id,
-                  label: (
-                    <SelectOptionWithAvatar name={user.name} avatarUrl={user.avatar_url ?? undefined} />
-                  ),
-                })) : []
+                Array.isArray(userQueryResult?.data?.data)
+                  ? userQueryResult.data.data.map((user: any) => ({
+                      value: user.id,
+                      label: (
+                        <SelectOptionWithAvatar name={user.name} avatarUrl={user.avatar_url ?? undefined} />
+                      ),
+                    }))
+                  : []
               }
             />
           </Form.Item>
