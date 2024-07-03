@@ -1,49 +1,33 @@
 import { useEffect } from "react";
 
 import { useModalForm, useSelect } from "@refinedev/antd";
-import { type HttpError, useNavigation } from "@refinedev/core";
-import type { GetFields, GetFieldsFromList } from "@refinedev/nestjs-query";
+import { useNavigation } from "@refinedev/core";
 
 import { DollarOutlined } from "@ant-design/icons";
 import { Col, Form, Input, InputNumber, Modal, Row, Select } from "antd";
 
 import { SelectOptionWithAvatar } from "@/components";
-import type { DealUpdateInput } from "@/graphql/schema.types";
 import { useContactsSelect } from "@/hooks/useContactsSelect";
 import { useDealStagesSelect } from "@/hooks/useDealStagesSelect";
 import { useUsersSelect } from "@/hooks/useUsersSelect";
 
-import {
-  fetchSalesCompanies,
-    fetchUpdateDeal,
-} from "./queries";
-
 export const SalesEditPage = () => {
   const { list } = useNavigation();
 
-  const { formProps, modalProps, close, queryResult } = useModalForm<
-    GetFields<typeof fetchUpdateDeal>,
-    HttpError,
-    DealUpdateInput
-  >({
+  const { formProps, modalProps, close, queryResult } = useModalForm({
     action: "edit",
     defaultVisible: true,
-    queryFn: fetchUpdateDeal,
+    resource: "deals",
   });
 
-  const {
-    selectProps: companySelectProps,
-    queryResult: companySelectQueryResult,
-  } = useSelect<GetFieldsFromList<typeof fetchSalesCompanies>>({
+  const { selectProps: companySelectProps, queryResult: companySelectQueryResult } = useSelect({
     resource: "companies",
     optionLabel: "name",
-    queryFn: fetchSalesCompanies,
   });
 
   const { selectProps: stageSelectProps } = useDealStagesSelect();
 
-  const { selectProps: userSelectProps, queryResult: userSelectQueryResult } =
-    useUsersSelect();
+  const { selectProps: userSelectProps, queryResult: userSelectQueryResult } = useUsersSelect();
 
   const deal = queryResult?.data?.data;
 
@@ -51,14 +35,11 @@ export const SalesEditPage = () => {
 
   useEffect(() => {
     if (deal?.company?.id !== companyIdField) {
-      formProps.form?.setFieldValue(["deal_contact_id"], undefined);
+      formProps.form?.setFieldValue("contact_id", undefined);
     }
-  }, [companyIdField]);
+  }, [companyIdField, deal?.company?.id, formProps.form]);
 
-  const {
-    selectProps: contactSelectProps,
-    queryResult: contactsSelectQueryResult,
-  } = useContactsSelect({
+  const { selectProps: contactSelectProps, queryResult: contactsSelectQueryResult } = useContactsSelect({
     filters: [
       {
         field: "company.id",
@@ -73,12 +54,10 @@ export const SalesEditPage = () => {
       return null;
     }
 
-    const hasContact =
-      deal?.company?.contacts?.length !== undefined &&
-      deal?.company.contacts.length > 0;
+    const hasContact = deal?.company?.contacts?.length > 0;
 
     if (hasContact) {
-      const options = contactsSelectQueryResult?.data?.map((contact) => ({
+      const options = contactsSelectQueryResult?.data?.data?.map((contact) => ({
         label: (
           <SelectOptionWithAvatar
             name={contact.name}
@@ -91,12 +70,10 @@ export const SalesEditPage = () => {
       return (
         <Form.Item
           label="Deal contact"
-          name={["deal_contact_id"]}
-          trigger=""
+          name="contact_id"
           rules={[{ required: true }]}
-          initialValue={deal?.deal_contact?.id}
+          initialValue={deal?.contact?.id}
           dependencies={["company_id"]}
-          preserve={false}
         >
           <Select {...contactSelectProps} options={options} />
         </Form.Item>
@@ -111,27 +88,26 @@ export const SalesEditPage = () => {
       {...modalProps}
       onCancel={() => {
         close();
-        list("deals", "replace");
+        list("deals");
       }}
       title="Edit deal"
       width={512}
     >
-      <Form {...formProps} layout="vertical" preserve={false}>
+      <Form {...formProps} layout="vertical">
         <Form.Item label="Deal title" name="title" rules={[{ required: true }]}>
           <Input placeholder="Please enter deal title" />
         </Form.Item>
         <Form.Item
           label="Company"
-          initialValue={deal?.company?.id}
-          name={["company_id"]}
+          name="company_id"
           rules={[{ required: true }]}
-          dependencies={["deal_contact_id"]}
+          dependencies={["contact_id"]}
         >
           <Select
             placeholder="Please select company"
             {...companySelectProps}
             options={
-              companySelectQueryResult.data?.map((company) => ({
+              companySelectQueryResult.data?.data?.map((company) => ({
                 value: company.id,
                 label: (
                   <SelectOptionWithAvatar
@@ -147,7 +123,7 @@ export const SalesEditPage = () => {
         {renderContactForm()}
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item label="Stage" name="deal_stage_id">
+            <Form.Item label="Stage" name="stage_id">
               <Select
                 placeholder="Please select stage"
                 {...stageSelectProps}
@@ -181,7 +157,7 @@ export const SalesEditPage = () => {
             placeholder="Please select user"
             {...userSelectProps}
             options={
-              userSelectQueryResult.data?.map((user) => ({
+              userSelectQueryResult.data?.data?.map((user) => ({
                 value: user.id,
                 label: (
                   <SelectOptionWithAvatar
