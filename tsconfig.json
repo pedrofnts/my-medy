@@ -13,8 +13,8 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "NodeNext",
-    "moduleResolution": "node16",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -27,7 +27,8 @@
     }
   },
   "include": [
-    "src"
+    "src",
+    "vite.config.ts"
   ],
   "references": [
     {
