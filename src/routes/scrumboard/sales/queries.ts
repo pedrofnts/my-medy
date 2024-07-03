@@ -30,11 +30,10 @@ export const fetchSalesCompanies = async (
   return data;
 };
 
-export const createDealStage = async (input: any) => {
+export const createDealStage = async (values: any) => {
   const { data, error } = await supabaseClient
-    .from("deal_stages")
-    .insert(input)
-    .single();
+    .from("dealStages")
+    .insert(values);
 
   if (error) {
     throw new Error(error.message);

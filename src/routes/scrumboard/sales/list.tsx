@@ -1,4 +1,4 @@
-import { FC, PropsWithChildren, useMemo } from "react";
+import { FC, PropsWithChildren, useMemo, useState } from "react";
 
 import { useDelete, useList, useNavigation, useUpdate, useUpdateMany } from "@refinedev/core";
 
@@ -10,10 +10,18 @@ import { Text } from "@/components";
 import { currencyNumber } from "@/utilities";
 
 import {
-  DealKanbanCardMemo, DealKanbanCardSkeleton, DealKanbanWonLostDrop,
-  KanbanAddCardButton, KanbanAddStageButton, KanbanBoard,
-  KanbanBoardSkeleton, KanbanColumn, KanbanColumnSkeleton, KanbanItem
+  DealKanbanCardMemo,
+  DealKanbanCardSkeleton,
+  DealKanbanWonLostDrop,
+  KanbanAddCardButton,
+  KanbanAddStageButton,
+  KanbanBoard,
+  KanbanBoardSkeleton,
+  KanbanColumn,
+  KanbanColumnSkeleton,
+  KanbanItem
 } from "../components";
+import { SalesCreateStage } from "./create-stage"; // Ajuste o caminho conforme necessário
 
 const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1));
 const lastMonthISO = lastMonth.toISOString();
@@ -38,10 +46,11 @@ type Deal = {
 type DealStageColumn = DealStage & { deals: Deal[] };
 
 export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
-  const { replace, edit, create } = useNavigation();
+  const { replace, edit } = useNavigation();
   const { mutate: updateDeal } = useUpdate();
   const { mutate: updateManyDeal } = useUpdateMany();
   const { mutate: deleteStage } = useDelete();
+  const [isCreateStageModalVisible, setIsCreateStageModalVisible] = useState(false);
 
   const { data: stages, isLoading: isLoadingStages } = useList<DealStage>({
     resource: "deal_stages",
@@ -123,8 +132,12 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
     );
   };
 
-  const handleAddStage = () => create("deal_stages", "replace");
+  const handleAddStage = () => {
+    setIsCreateStageModalVisible(true);
+  };
+
   const handleEditStage = (stageId: string) => edit("deal_stages", stageId);
+
   const handleDeleteStage = (stageId: string) => {
     deleteStage({
       resource: "deal_stages",
@@ -156,13 +169,13 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
     {
       label: "Edit status",
       key: "1",
-      icon: <EditOutlined />,
+      icon: <EditOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />,
       onClick: () => handleEditStage(column.id),
     },
     {
       label: "Clear all cards",
       key: "2",
-      icon: <ClearOutlined />,
+      icon: <ClearOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />,
       disabled: column.deals.length === 0,
       onClick: () => handleClearCards(column.deals.map((deal) => deal.id)),
     },
@@ -170,7 +183,7 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
       danger: true,
       label: "Delete status",
       key: "3",
-      icon: <DeleteOutlined />,
+      icon: <DeleteOutlined onPointerEnterCapture={undefined} onPointerLeaveCapture={undefined} />,
       disabled: column.deals.length > 0,
       onClick: () => handleDeleteStage(column.id),
     },
@@ -353,6 +366,10 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
         <DealKanbanWonLostDrop />
       </KanbanBoard>
       {children}
+      <SalesCreateStage
+        visible={isCreateStageModalVisible}
+        onCancel={() => setIsCreateStageModalVisible(false)}
+      />
     </>
   );
 };
@@ -362,7 +379,7 @@ const PageSkeleton = () => {
   const itemCount = 4;
 
   return (
-   <KanbanBoardSkeleton>
+    <KanbanBoardSkeleton>
       {Array.from({ length: columnCount }).map((_, index) => (
         <KanbanColumnSkeleton key={index} type="deal">
           {Array.from({ length: itemCount }).map((_, index) => (
@@ -370,7 +387,7 @@ const PageSkeleton = () => {
           ))}
         </KanbanColumnSkeleton>
       ))}
-     <KanbanAddStageButton disabled />
+      <KanbanAddStageButton disabled />
       <KanbanColumnSkeleton type="deal" variant="solid">
         {Array.from({ length: itemCount }).map((_, index) => (
           <DealKanbanCardSkeleton key={index} />
