@@ -21,7 +21,8 @@ import {
   KanbanColumnSkeleton,
   KanbanItem
 } from "../components";
-import { SalesCreateStage } from "./create-stage"; // Ajuste o caminho conforme necessário
+import { SalesCreateStage } from "./create-stage";
+import { SalesFinalizeDeal } from "./finalize-deal"; // Import the SalesFinalizeDeal component
 
 const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1));
 const lastMonthISO = lastMonth.toISOString();
@@ -51,6 +52,8 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
   const { mutate: updateManyDeal } = useUpdateMany();
   const { mutate: deleteStage } = useDelete();
   const [isCreateStageModalVisible, setIsCreateStageModalVisible] = useState(false);
+  const [isFinalizeDealModalVisible, setIsFinalizeDealModalVisible] = useState(false);
+  const [currentDealId, setCurrentDealId] = useState<string | undefined>(undefined);
 
   const { data: stages, isLoading: isLoadingStages } = useList<DealStage>({
     resource: "deal_stages",
@@ -125,7 +128,8 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
         onSuccess: () => {
           const stage = event.over?.id as undefined | string | null;
           if (stage === "won" || stage === "lost") {
-            edit("finalize-deals", dealId, "replace");
+            setCurrentDealId(dealId);
+            setIsFinalizeDealModalVisible(true);
           }
         },
       },
@@ -369,6 +373,11 @@ export const SalesPage: FC<PropsWithChildren> = ({ children }) => {
       <SalesCreateStage
         visible={isCreateStageModalVisible}
         onCancel={() => setIsCreateStageModalVisible(false)}
+      />
+      <SalesFinalizeDeal
+        visible={isFinalizeDealModalVisible}
+        onCancel={() => setIsFinalizeDealModalVisible(false)}
+        dealId={currentDealId}
       />
     </>
   );

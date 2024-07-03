@@ -1,95 +1,92 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 
 import { useModalForm } from "@refinedev/antd";
-import { useInvalidate, useNavigation } from "@refinedev/core";
+import { useInvalidate, useNavigation, useUpdate } from "@refinedev/core";
 
-import { DatePicker, Form, Input, Modal } from "antd";
-import dayjs from "dayjs";
+import { DatePicker,Form, Input, Modal } from "antd";
 
-import type { Database } from "@/types/supabase";
+interface SalesFinalizeDealProps {
+  visible: boolean;
+  onCancel: () => void;
+  dealId?: string;
+}
 
-type Deal = Database["public"]["Tables"]["deals"]["Row"];
-
-type FormValues = {
-  notes?: string;
-  closeDate?: dayjs.Dayjs;
-};
-
-type SalesFinalizeDealProps = {
-  dealId: number;
-  onClose: () => void;
-};
-
-export const SalesFinalizeDeal: React.FC<SalesFinalizeDealProps> = ({ dealId, onClose }) => {
+export const SalesFinalizeDeal: React.FC<SalesFinalizeDealProps> = ({ visible, onCancel, dealId }) => {
   const invalidate = useInvalidate();
-  const { list } = useNavigation();
+  const { show } = useNavigation();
 
-  const { formProps, modalProps, close, queryResult } = useModalForm<Deal>({
+  const { formProps, modalProps, close, setId } = useModalForm({
     action: "edit",
     resource: "deals",
-    id: dealId.toString(),
-    defaultVisible: true,
+    id: dealId,
     onMutationSuccess: () => {
-      invalidate({ invalidates: ["list"], resource: "deals" });
-      onClose();
+      invalidate({ invalidates: ["detail"], resource: "deals", id: dealId });
     },
     successNotification: () => ({
-      key: "edit-deal",
+      key: "finalize-deal",
       type: "success",
-      message: "Successfully updated deal",
+      message: "Successfully finalized deal",
       description: "Successful",
+    }),
+    errorNotification: (error) => ({
+      key: "finalize-deal-error",
+      type: "error",
+      message: "Error finalizing deal",
+      description: error?.message,
     }),
   });
 
-  useEffect(() => {
-    const data = queryResult?.data;
-    if (data) {
-      const closeDate = data.close_date_year && data.close_date_month && data.close_date_day
-        ? dayjs(new Date(data.close_date_year, data.close_date_month - 1, data.close_date_day))
-        : undefined;
+  const { mutateAsync: updateMutateAsync } = useUpdate();
 
-      formProps.form?.setFieldsValue({
-        closeDate: closeDate,
-        notes: data.notes ?? '',
-      });
+  useEffect(() => {
+    if (dealId) {
+      setId(dealId);
     }
-  }, [queryResult?.data, formProps.form]);
+  }, [dealId, setId]);
+
+  const handleFormFinish = async (values: any) => {
+    try {
+      await updateMutateAsync({
+        resource: "deals",
+        id: dealId,
+        values: { ...values, status: "closed" },
+      });
+      formProps.form?.resetFields();
+      close();
+      onCancel();
+      show("deals", dealId);
+    } catch (error) {
+      console.error("Error finalizing deal:", error);
+    }
+  };
+
+  const resetForm = () => {
+    formProps.form?.resetFields();
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      resetForm();
+    }
+  }, [visible]);
 
   return (
     <Modal
       {...modalProps}
+      open={visible}
       onCancel={() => {
         close();
-        onClose();
+        onCancel();
+        resetForm();
       }}
       title="Finalize Deal"
       width={512}
     >
-      <Form
-        {...formProps}
-        layout="vertical"
-        onFinish={(values: FormValues) => {
-          const closeDate = values.closeDate ? dayjs(values.closeDate) : undefined;
-
-          formProps.onFinish?.({
-            id: dealId,
-            notes: values.notes,
-            close_date_day: closeDate ? closeDate.date() : null,
-            close_date_month: closeDate ? closeDate.month() + 1 : null,
-            close_date_year: closeDate ? closeDate.year() : null,
-            stage_id: 2, // Assumindo que 2 é o ID do estágio "LOST"
-          });
-        }}
-      >
-        <Form.Item label="Notes" name="notes" rules={[{ required: true }]}>
-          <Input.TextArea rows={6} />
+      <Form {...formProps} layout="vertical" onFinish={handleFormFinish}>
+        <Form.Item label="Notes" name="notes">
+          <Input.TextArea />
         </Form.Item>
-        <Form.Item
-          label="Closed date"
-          name="closeDate"
-          rules={[{ required: false }]}
-          getValueProps={(value) => ({ value: value ? dayjs(value) : undefined })}
-        >
+        <Form.Item label="Closing Date" name="closing_date">
           <DatePicker />
         </Form.Item>
       </Form>
